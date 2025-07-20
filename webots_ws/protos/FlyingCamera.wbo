@@ -1,0 +1,26 @@
+#VRML_OBJ R2022a utf8
+Robot {
+  translation -0.87 -7.46 1.25
+  rotation 0.7071067811865475 0 0.7071067811865475 3.14
+  children [
+    Shape {
+      appearance Appearance {
+        material Material {
+        }
+      }
+      geometry Cone {
+        bottomRadius 0.05
+        height 0.1
+      }
+    }
+    Camera {
+      rotation 0 1 0 1.57
+      fieldOfView 1
+      width 640
+      height 480
+    }
+  ]
+  name "FlyingCamera"
+  controller "mqtt_external_controller"
+  supervisor TRUE
+}
