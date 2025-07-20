@@ -1,1 +1,11 @@
-# Indoor_drone_explorer
+# GLOBAL DESCRIPTION 
+
+TODO
+
+# INSTALL
+
+TODO 
+
+# EXECUTION 
+
+TODO
