@@ -1,0 +1,19 @@
+{
+    "pose3d": [
+        -2.32034,
+        -8.17165,
+        1.25079
+    ],
+    "rot4d": [
+        0.5205462621060404,
+        0.6773913410808513,
+        0.5197812617208467,
+        -1.9516053071795865
+    ],
+    "local_image_path": "/home/hostuser/workspace/colcon_ws/src/flying_camera/data/images/camera_img_250720094627.jpg",
+    "colab_image_path": "/content/drive/MyDrive/Colab Notebooks/data/images/camera_img_250720094627.jpg",
+    "blip": [
+        "a 3d rendering of a bedroom with a bed and lamp",
+        "Question: I'm in a house. In what place am I? Answer: In the bedroom."
+    ]
+}

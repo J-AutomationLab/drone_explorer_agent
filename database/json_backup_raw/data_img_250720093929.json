@@ -1,0 +1,14 @@
+{
+    "pose3d": [
+        -0.87,
+        -7.46,
+        1.25
+    ],
+    "rot4d": [
+        0.7071067811865475,
+        0.0,
+        0.7071067811865475,
+        3.14
+    ],
+    "local_image_path": "/home/hostuser/workspace/colcon_ws/src/flying_camera/data/images/camera_img_250720093929.jpg"
+}

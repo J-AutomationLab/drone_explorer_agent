@@ -1,0 +1,19 @@
+{
+    "pose3d": [
+        -3.81682,
+        -4.00637,
+        1.24596
+    ],
+    "rot4d": [
+        -0.35656318068380227,
+        0.8631544373924009,
+        -0.35752918117331056,
+        -1.7169653071795858
+    ],
+    "local_image_path": "/home/hostuser/workspace/colcon_ws/src/flying_camera/data/images/camera_img_250720095103.jpg",
+    "colab_image_path": "/content/drive/MyDrive/Colab Notebooks/data/images/camera_img_250720095103.jpg",
+    "blip": [
+        "a kitchen with a red refrigerator and a table",
+        "Question: I'm in a house. In what place am I? Answer: In the kitchen."
+    ]
+}

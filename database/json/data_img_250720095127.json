@@ -1,0 +1,19 @@
+{
+    "pose3d": [
+        -11.4915,
+        -0.777048,
+        1.24236
+    ],
+    "rot4d": [
+        0.2515470529294045,
+        0.9348661967103588,
+        0.25049805270867853,
+        -1.6383953071795858
+    ],
+    "local_image_path": "/home/hostuser/workspace/colcon_ws/src/flying_camera/data/images/camera_img_250720095127.jpg",
+    "colab_image_path": "/content/drive/MyDrive/Colab Notebooks/data/images/camera_img_250720095127.jpg",
+    "blip": [
+        "a 3d rendering of a dining room and kitchen",
+        "Question: I'm in a house. In what place am I? Answer: In the kitchen."
+    ]
+}

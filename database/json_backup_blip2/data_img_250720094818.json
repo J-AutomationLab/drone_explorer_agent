@@ -1,0 +1,19 @@
+{
+    "pose3d": [
+        -4.91708,
+        -7.11506,
+        1.24953
+    ],
+    "rot4d": [
+        0.6948568117542819,
+        0.1861289495752547,
+        0.6946438118119864,
+        -2.7750553071795863
+    ],
+    "local_image_path": "/home/hostuser/workspace/colcon_ws/src/flying_camera/data/images/camera_img_250720094818.jpg",
+    "colab_image_path": "/content/drive/MyDrive/Colab Notebooks/data/images/camera_img_250720094818.jpg",
+    "blip": [
+        "a 3d rendering of a bathroom with a toilet and bed",
+        "Question: I'm in a house. In what place am I? Answer: In the bathroom."
+    ]
+}
