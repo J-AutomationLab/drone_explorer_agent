@@ -31,7 +31,7 @@ I choose MQTT as the communication broker between the Simulator and the Database
 Since the hardware is generally limited in processing power, the heavy processes are done in the edge and the controller has been build as light as possible.
 
 ## Database 
-The database is a big word for a set of folders. Since the data is simple here, this design is good enough:
+The database is a big word for a set of folders:
 * The images are stored in the */database/image* folder as jpg files.
 * The pose and estimated data are stored in the */database/json* folder as json files.
 
@@ -39,6 +39,12 @@ The database is managed by an *operator.py* node. The database is a parallel com
 * It manages the communication with the hardware controller using MQTT: it read, process and write the robot's sensor data into the database and publish the command from the agent to the robot. The data arrived asynchronously but this node synchronize the writting of the different MQTT input channels.
 * The received pose are not processed and are stored immediatly as it is.
 * The received images are stored then their text description is estimated usign BLIP2. BLIP2 has been computed on each possible input image using google colab. In the demonstration system, it directly calls the results from a file.
+
+#### Choice of design: writing data criteria
+The image and pose are stored only if this data does not exist in the database already (to avoid data duplication and keep it readable, even with a few data). The current decision criteria is:
+* Pose exist in the registered json file -> Data (image + json) not written. 
+* This design is simple and possible since we use precomputed discrete poses. The similarity criteria in a real time application could be computed instead of simply compared.
+* This design is also possible since we work in a fixed environment (fixed objects poses, fixed light...). As a direct consequence, the images taken at the same pose, whatever the time, are always identical. In a real world, we should update the database with the new image if different for the same pose (probably another data architecture should be chosen). 
 
 #### Choice of design: not ROS2
 Normally I would recommand using ROS2 for this usecase. But since the system is simplified, the data is written in the database and is not passed directly to the agent as it is in real-time, setting up ROS2 would be a loss of time without any real gain. Indeed, the global architecture will be simplified and the operator will be set as an agent's attribute objet:

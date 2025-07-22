@@ -16,9 +16,6 @@ def on_message(client, userdata, msg):
         cmd_msg = msg
     
 class RobotController:
-    vmax_tr = .25
-    vmax_rt = .15
-
     def __init__(self, trs_field, rot_field):
         self._tf = trs_field
         self._rf = rot_field
@@ -33,30 +30,12 @@ class RobotController:
         
     def move(self, target_pose3d=None, target_rot4d=None):
         if target_pose3d is not None:
-            current_pose = self.pose3d
-            
-            # rotate in robot space
-            # TODO 
-            
-            # clamp 
-            clamped_target_tr = [max(min(x, self.vmax_tr), -self.vmax_tr) for x in target_pose3d]
-            clamped_target_pose = np.array(current_pose) + np.array(clamped_target_tr)
-            print(current_pose, clamped_target_tr, clamped_target_pose)
-            
-            self._tf.setSFVec3f(list(clamped_target_pose))
+            assert len(target_pose3d) == 3
+            self._tf.setSFVec3f(list(target_pose3d))
             
         if target_rot4d is not None:
-            current_rot = self.rot4d
-            
-            # rotate in robot space
-            # TODO 
-            
-            # clamp 
-            clamped_target_rt = [max(min(x, self.vmax_rt), -self.vmax_rt) for x in target_rot4d]
-            clamped_target_rot = np.array(current_rot) + np.array(clamped_target_rt)
-            print(current_rot, clamped_target_rt, clamped_target_rot)
-            
-            self._rf.setSFVec3f(list(clamped_target_rot))
+            assert len(target_rot4d)
+            self._rf.setSFVec3f(list(target_rot4d))
 
 try:
     # MQTT objects
@@ -78,9 +57,7 @@ try:
     camera = supervisor.getDevice('camera')
     camera.enable(timestep)
     height, width = 480, 640
-    
-    print(robot_controller.pose3d, robot_controller.rot4d)
-    
+        
     cmd_msg = None
     
     while supervisor.step(timestep) != -1:
@@ -93,10 +70,8 @@ try:
             _, jpeg_bytes = cv2.imencode('.jpg', img_bgr)
             
             encoded = base64.b64encode(jpeg_bytes).decode('ascii')
-            pose7d = {
-                'pose3d': list(robot_controller.pose3d),
-                'rot4d': list(robot_controller.rot4d),
-            }
+            pose7d = list(robot_controller.pose3d) + list(robot_controller.rot4d)
+            print(pose7d)
             mqtt_client.publish('hardware_out/camera', encoded)
             mqtt_client.publish('hardware_out/robot/pose7d', json.dumps(pose7d))
         
