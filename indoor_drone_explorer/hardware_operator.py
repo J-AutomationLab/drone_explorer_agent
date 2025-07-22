@@ -15,13 +15,14 @@ DATABASE_IMAGE_PATH = 'your-path-to/database/images' # TODO: update your path
 DATABASE_JSON_PATH = 'your-path-to/database/json' # TODO: update your path 
 
 DATABASE_IMAGE_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/images' 
-DATABASE_JSON_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/json_data_demo'  
+DATABASE_JSON_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/json_data_demo'
+DATABASE_MEMORY_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/json_data_blip2'
 
 print(f"Will save in the data folder: {DATABASE_IMAGE_PATH}")
 os.makedirs(DATABASE_IMAGE_PATH, exist_ok=True)
 os.makedirs(DATABASE_JSON_PATH, exist_ok=True)
 
-def load_data(json_data_dir=DATABASE_JSON_PATH):
+def load_data(json_data_dir=DATABASE_JSON_PATH, keys_to_check=[]):
 
     # check the path to data exists
     assert os.path.exists(json_data_dir) and os.path.isdir(json_data_dir)
@@ -35,7 +36,7 @@ def load_data(json_data_dir=DATABASE_JSON_PATH):
             json_data = json.load(f)
 
         # check the keys of the loaded data
-        assert [key in json_data.keys() for key in ['pose3d', 'rot4d', 'image_path']]
+        assert [key in json_data.keys() for key in ['pose7d', 'local_image_path'] + keys_to_check]
 
         registered_data[json_path] = json_data.copy()
 
@@ -135,7 +136,7 @@ def on_message(client, userdata, msg):
 ##### MAIN ##### 
 
 class HWOperator:
-    def __init__(self, on_connect, on_message):
+    def __init__(self, on_connect=on_connect, on_message=on_message):
         self._mqtt_client = mqtt.Client()
         self._mqtt_client.on_connect = on_connect
         self._mqtt_client.on_message = on_message
