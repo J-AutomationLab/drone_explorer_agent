@@ -1,0 +1,12 @@
+{
+    "pose7d": [
+        -5.41,
+        -7.4459,
+        1.24367,
+        -0.5776830771686436,
+        -0.5776830771686436,
+        -0.5766840770351942,
+        -2.089995307179586
+    ],
+    "local_image_path": "/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/images/camera_img_250722122919.jpg"
+}
