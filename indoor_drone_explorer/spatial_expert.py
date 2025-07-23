@@ -54,11 +54,30 @@ class SpatialAPI:
     def get_pose_key(self, pose_value):
         return get_index_from_points(pose_value)
     
-    def get_neighbors(self, pose_idx):
+    def get_neighbors(self, pose_point):
+        pose_idx = self.get_pose_key([pose_point])
         return list(self._graph.adj[pose_idx])
+    
+    def get_closest_points(self, source_point, excluded_points=[]):
+        candidates_points = set(self._points.values()).difference(set(excluded_points))
 
-    def get_shortest_path(self, source_idx, target_idx):
-        return nx.shortest_path(self._graph, source_idx, target_idx)
+        closest_paths = [self.get_shortest_path(source_point, candidate) for candidate in candidates_points]
+        min_path = min(len(p) for p in closest_paths)
+        closest_points = [p[-1] for p in closest_paths if len(p) == min_path]
+
+        return closest_points
+
+    def get_shortest_path(self, source_point, target_point):
+        source_idx, target_idx = (self.get_pose_key() for p in [source_point, target_point])
+        path = nx.shortest_path(self._graph, source_idx, target_idx)[1:] # exclude the source 
+        return [self.get_pose_value(p) for p in path]
+    
+    def filter_existing_points(self, request_list_points):
+        return [point for point in request_list_points if point in self._points.values()]
+    
+    def get_percentage_of_exploration(self, explored_points):
+        existing_explored_points = self.filter_existing_points(explored_points)
+        return len(existing_explored_points) / len(self._points)
 
 if __name__ == "__main__":
     spatial_api = SpatialAPI()

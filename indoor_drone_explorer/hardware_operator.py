@@ -16,31 +16,31 @@ DATABASE_JSON_PATH = 'your-path-to/database/json' # TODO: update your path
 
 DATABASE_IMAGE_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/images' 
 DATABASE_JSON_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/json_data_demo'
-DATABASE_MEMORY_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/json_data_blip2'
+DATABASE_MEMORY_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/json_data_memory'
+DATABASE_BLIP2_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/json_data_blip2'
 
 print(f"Will save in the data folder: {DATABASE_IMAGE_PATH}")
 os.makedirs(DATABASE_IMAGE_PATH, exist_ok=True)
 os.makedirs(DATABASE_JSON_PATH, exist_ok=True)
+os.makedirs(DATABASE_MEMORY_PATH, exist_ok=True)
 
 def load_data(json_data_dir=DATABASE_JSON_PATH, keys_to_check=[]):
 
-    # check the path to data exists
     assert os.path.exists(json_data_dir) and os.path.isdir(json_data_dir)
-
-    # load data
+    
     registered_data = {}
     for json_path in sorted(os.listdir(json_data_dir)):
         json_path = os.path.join(json_data_dir, json_path)
         json_data = {}
-        with open(json_path, 'r') as f:
-            json_data = json.load(f)
+        with open(json_path, 'r') as f: json_data = json.load(f)
 
-        # check the keys of the loaded data
         assert [key in json_data.keys() for key in ['pose7d', 'local_image_path'] + keys_to_check]
 
         registered_data[json_path] = json_data.copy()
-
     return registered_data
+
+blip_data = load_data(DATABASE_BLIP2_PATH, ['blip'])
+blip_data = {k:v['blip'] for k,v in blip_data.items()}
 
 ##### MQTT ##### 
 
@@ -56,11 +56,12 @@ MQTT_TOPICS = {
     },
 }
 
+TIME_CONTRAINT = .25 # seconds
+
 def reset_last_msg(): 
     return {'image': None, 'pose7d': None, 'time': None}
 
 def last_msg_is_ok(last_msg): 
-
     local_memory = load_data()
     
     # check if all the keys has a value
@@ -68,80 +69,79 @@ def last_msg_is_ok(last_msg):
     if not cond_not_empty: return False 
 
     # check if the pose is not already registered
-    print(local_memory)
     if len(local_memory) > 0:
         known_poses = [x['pose7d'] for x in local_memory.values()]
-        cond_pose_is_unknown = last_msg['pose7d'] not in known_poses
-        print()
-        print(last_msg['pose7d'])
-        print()
-        print(known_poses)
-        print()
+        def pose_is_similar(pose1, pose2, tol=1e-5):
+            return all(abs(pose1[k] - pose2[k]) < tol for k in pose1)
 
+        cond_pose_is_unknown = not any(pose_is_similar(last_msg['pose7d'], known) for known in known_poses)
+        # cond_pose_is_unknown = last_msg['pose7d'] not in known_poses
         if not cond_pose_is_unknown: return False 
 
     return True
-
-last_msg = reset_last_msg()
 
 def get_timestamp(t=None):
     if t is None:
         t = time.time()
     return time.strftime("%y%m%d%H%M%S", time.localtime(t))
 
-def on_connect(client, userdata, flags, rc):
-    client.subscribe('hardware_out/camera')
-    client.subscribe('hardware_out/robot/pose7d')
-
-def on_message(client, userdata, msg):
-    global last_msg 
-
-    last_msg_time = last_msg['time']
-    now = time.time()
-    #print(f'Received image on topic {msg.topic} at time {get_timestamp(now)}')
-    
-    last_msg['time'] = now
-
-    # receive and store locally the image 
-    if msg.topic == 'hardware_out/camera':
-        img_data  = base64.b64decode(msg.payload)
-        nparr = np.frombuffer(img_data, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        last_msg['image'] = img
-
-    # receive and store locally the pose: position 3d + rotation 4d
-    elif msg.topic == 'hardware_out/robot/pose7d':
-        pose7d = json.loads(msg.payload) # dict with pose3d and rot4d keys
-        last_msg['pose7d'] = pose7d
-    
-    # if all asynchronous data has been received before the timestamp -> synchronize and write the data in the database 
-    if last_msg_is_ok(last_msg):
-        timestamp = get_timestamp(last_msg['time'])
-        image_path = os.path.join(DATABASE_IMAGE_PATH, f'camera_img_{timestamp}.jpg')
-        try:
-            image = last_msg['image']
-            pose7d = last_msg['pose7d']
-            cv2.imwrite(image_path, image)
-            with open(os.path.join(DATABASE_JSON_PATH, f'data_img_{timestamp}.json'), 'w') as f:
-                json_data = {
-                    'pose7d': pose7d,
-                    'local_image_path': image_path,
-                }
-                json.dump(json_data, f, indent=4)
-        except Exception as e:
-            raise e 
-        finally:
-            last_msg = reset_last_msg()
-    
 ##### MAIN ##### 
 
 class HWOperator:
-    def __init__(self, on_connect=on_connect, on_message=on_message):
+    TIME_CONTRAINT = TIME_CONTRAINT
+
+    def __init__(self):
         self._mqtt_client = mqtt.Client()
-        self._mqtt_client.on_connect = on_connect
-        self._mqtt_client.on_message = on_message
+        self._mqtt_client.on_connect = self._on_connect
+        self._mqtt_client.on_message = self._on_message
+        self.last_msg = reset_last_msg()
 
         self._t = threading.Thread(target=self._listen, daemon=True).start()
+    
+    @property
+    def current_pose(self): return self.last_msg.get('pose7d')
+    
+    def _on_connect(self, client, userdata, flags, rc):
+        client.subscribe('hardware_out/camera')
+        client.subscribe('hardware_out/robot/pose7d')
+
+    def _on_message(self, client, userdata, msg):
+        now = time.time()
+        if now - self.last_msg['time'] > self.TIME_CONTRAINT:
+            self.last_msg = reset_last_msg()
+        
+        self.last_msg['time'] = now 
+
+        if msg.topic == 'hardware_out/camera':
+            img_data = base64.b64decode(msg.payload)
+            nparr = np.frombuffer(img_data, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            self.last_msg['image'] = img
+        
+        elif msg.topic == 'hardware_out/robot/pose7d':
+            pose7d = json.loads(msg.payload)
+            self.last_msg['pose7d'] = pose7d
+
+        if last_msg_is_ok(self.last_msg):
+            timestamp = get_timestamp(self.last_msg['time'])
+            image_path = os.path.join(DATABASE_IMAGE_PATH, f'camera_img_{timestamp}.jpg')
+            data_path = os.path.join(DATABASE_JSON_PATH, f'data_img_{timestamp}.json')
+            try:
+                image = self.last_msg['image']
+                cv2.imwrite(image_path, image)
+
+                pose7d = self.last_msg['pose7d']
+                json_data = {
+                    'pose7d': pose7d,
+                    'local_image_path': image_path,
+                    'blip': blip_data['blip'],
+                }
+                with open(data_path, 'w') as f:
+                    json.dump(json_data, f, indent=4)
+            except Exception as e:
+                raise e 
+            finally:
+                self.last_msg = reset_last_msg()
     
     def _listen(self, timesleep=.01):
         try:
@@ -155,9 +155,9 @@ class HWOperator:
             self._mqtt_client.disconnect()
             raise e
 
-    def send_cmd(self, payload):
-        data = json.dumps(payload)
-        self._mqtt_client.publish('hardware_in/robot/pose7d', data)
+    def send_cmd(self, target_pose_list):
+        payload = json.dumps(target_pose_list)
+        self._mqtt_client.publish('hardware_in/robot/pose7d', payload)
 
 if __name__ == "__main__":
 
@@ -167,7 +167,7 @@ if __name__ == "__main__":
         cmd = ast.literal_eval(cmd)
         hardware_operator.send_cmd(cmd)
     
-    hardware_operator = HWOperator(on_connect, on_message)
+    hardware_operator = HWOperator()
     while True:
         #send_manual_cmd(hardware_operator)
         pass
