@@ -35,7 +35,7 @@ class RobotController:
             
         if target_rot4d is not None:
             assert len(target_rot4d)
-            self._rf.setSFVec3f(list(target_rot4d))
+            self._rf.setSFRotation(list(target_rot4d))
 
 try:
     # MQTT objects

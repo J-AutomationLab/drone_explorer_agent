@@ -41,12 +41,16 @@ def load_data(json_data_dir=DATABASE_JSON_PATH, keys_to_check=[]):
 
 blip_data = load_data(DATABASE_BLIP2_PATH, ['blip'])
 
-def pose_is_similar(pose1, pose2, tol=1e-6):
+def pose_is_similar(pose1, pose2, tol=1e-4):
     return sum(np.abs(np.array(pose1) - np.array(pose2))) < tol 
 
 def get_blip_data(pose7d):
+    #print(pose7d)
+    #for v in blip_data.values():
+        #print(v['pose7d'])
+        #print( pose_is_similar(pose7d, v['pose7d']))
     target_data  = [v['blip'] for v in blip_data.values() if pose_is_similar(pose7d, v['pose7d'])]
-    return target_data.pop() 
+    return target_data.pop()
 
 ##### MQTT ##### 
 
@@ -133,10 +137,11 @@ class HWOperator:
             data_path = os.path.join(DATABASE_JSON_PATH, f'data_img_{timestamp}.json')
             try:
                 pose7d = self.last_msg['pose7d']
+                blip = get_blip_data(pose7d)
                 json_data = {
                     'pose7d': pose7d,
                     'local_image_path': image_path,
-                    'blip': get_blip_data(pose7d),
+                    'blip': blip,
                 }
                 with open(data_path, 'w') as f:
                     json.dump(json_data, f, indent=4)
@@ -144,7 +149,7 @@ class HWOperator:
                 image = self.last_msg['image']
                 cv2.imwrite(image_path, image)
             except Exception as e:
-                raise e 
+                raise e
             finally:
                 self.last_msg = reset_last_msg()
     
@@ -174,5 +179,5 @@ if __name__ == "__main__":
     
     hardware_operator = HWOperator()
     while True:
-        #send_manual_cmd(hardware_operator)
+        send_manual_cmd(hardware_operator)
         pass
