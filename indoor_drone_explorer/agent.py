@@ -1,6 +1,6 @@
 import random 
 import time 
-from typing import TypedDict, Dict, List
+from typing import TypedDict, Dict, List, Tuple, Any
 
 import numpy as np
 import torch 
@@ -20,47 +20,62 @@ clip_processor = CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32', u
 
 ##### utils function #####
 
-def compute_similarity_between_2_texts(txt1, txt2):
+def compute_similarity_between_2_texts(txt1:str, txt2:str)->float:
     embeddings = [txt_similarity_model.encode(txt, convert_to_tensor=True) for txt in [txt1,txt2]]
     return float(util.cos_sim(*embeddings))
 
-def get_best_matches_images_description_with_prompt(data, prompt, n_best):
-    # compute similarity 
-    for k, v in data.items():
-        prior_text = v['blip']
-        prior_scores = []
-        for token in prompt + [prompt]:
-            token_scores = [compute_similarity_between_2_texts(s, token) for s in prior_text]
-            prior_scores.append(token_scores)
-        data[k]['prior_score'] = np.max(prior_scores)
-    
-    # get the best matches 
-    best_matches = sorted(data.items(), key=lambda x: x[1]['prior_score'], reverse=True) # tuple 
+def compute_prior_similarities(data:Dict[str, Dict[str, Any]], str_query:str): 
+    for k, v_dict in data.items():
+        blip_description = v_dict['blip']
+        prior_scores = [] 
 
-    return best_matches[:n_best]
+        # compute similarity for description
+        for description in blip_description:
+            prior_scores.append(compute_similarity_between_2_texts(description, str_query))
+        
+        data[k]['prior_scores'] = prior_scores # shape: len(blip_description) 
 
-def query_clip(image_path, prompts_per_image):
+def query_clip(image_path:str, prompts_per_image:List[str])->float:
     image = Image.open(image_path).convert("RGB")
     inputs = clip_processor(text=prompts_per_image, images=image, return_tensors='pt', padding=True)
     with torch.no_grad():
         outputs = clip_model(**inputs)
-    logits = outputs.logits_per_image 
-    probs = logits.softmax(dim=1)
+        logits_per_image = outputs.logits_per_image.squeeze(0).cpu().numpy()
+    
+    normalized_output = np.clip((logits_per_image - 0) / (50 - 0), 0, 1) # poor match < 10, good match ~ 15-20, very good > 25-30
+    return normalized_output
 
-    return probs.cpu().numpy() 
+def compute_prior_score(prior_score_list)->float:
+    return np.mean(prior_score_list)
+
+def compute_posterior_score(posterior_score_list)->float:
+    return np.mean(posterior_score_list)
 
 def compute_confidence(prior, posterior):
-    (prior + 3 * posterior) / 4
+    return (prior + 3 * posterior) / 4
 
 ##### memory state #####
 class AgentState(TypedDict):
     prompt: str
-    prior_score: float 
-    posterior_score: float 
-    percentage_of_exploration: float 
     current_pose7d: List[float]
-    decision: str 
+    known_poses: List[List[float]]
+    prior_scores: List[Tuple[str,float]] 
+    posterior_scores: List[Tuple[str,float]] 
+    percentage_of_exploration: float 
+    current_workflow: List[str] 
     target_pose7d: List[float]
+
+def get_initial_state(current_pose:List[float], prompt:str)->dict:
+    return {
+        "prompt": prompt,
+        "current_pose7d": current_pose,
+        "known_poses": [],
+        "prior_scores": [],
+        "posterior_scores": [],
+        "percentage_of_exploration": 0.0,
+        "current_workflow": [],
+        "target_pose7d": [],
+    }
 
 ##### agent ##### 
 class Agent:
@@ -76,57 +91,67 @@ class Agent:
     def _build(self):
         builder = StateGraph(AgentState)
         builder.add_node('load_memory', self.load_memory)
-        builder.add_node('estimate_memory', self.estimate_memory) 
-        builder.add_node('decision_explore_exploit', self.decision_explore_exploit)
-        builder.add_node('explore', self.explore)
-        builder.add_node('exploit', self.exploit)
-        builder.add_node('move', self.move)
+        builder.add_node('process_memory', self.process_memory) 
+        builder.add_node('explore_unknown', self.explore)
+        builder.add_node('exploit_known', self.exploit)
+        builder.add_node('move_to_target', self.move)
 
         builder.set_entry_point('load_memory')
-        builder.add_edge('explore', 'move')
-        builder.add_edge('exploit', 'move')
-        builder.add_edge('move', END)
-        builder.add_conditional_edges('decision_explore_exploit', self.decision_explore_exploit, {'explore': self.explore, 'exploit': self.exploit})
+        builder.add_conditional_edges(
+            'load_memory', self.decision_wait_process, {'process': 'process_memory', 'wait': END}
+        )
+        builder.add_conditional_edges(
+            'process_memory', self.decision_explore_exploit, {'explore': 'explore_unknown', 'exploit': 'exploit_known'}
+        )
+        builder.add_edge('explore_unknown', 'move_to_target')
+        builder.add_edge('exploit_known', 'move_to_target')
+        builder.add_edge('move_to_target', END)
 
         return builder.compile()
     
     def run(self, user_prompt):
-        initial_state = AgentState(
-            prompt=user_prompt,
-            current_pose7d=self._hardware_operator.current_pose, 
-            target_pose7d=List[float],
-            decision=str, 
-            prior_score=float, 
-            posterior_score=float, 
-            percentage_of_exploration=float,
-        )
-
-        results = self._agent.compile(initial_state)['decision']
+        current_pose = self._hardware_operator.current_pose
+        initial_state = get_initial_state(current_pose, user_prompt)
+        results = self._agent.invoke(initial_state)['decision']
         return results
 
     # load the database and filter the best matches [mandatory]
     def load_memory(self, state:AgentState)->AgentState:
         self._memory = load_data(DATABASE_MEMORY_PATH, ['blip'])
-        return state 
+        state['known_poses'] = [v['pose7d'] for v in self._memory.values()]
+        state['current_workflow'].append('load_memory')
+
+        return state
+ 
+    # if no memory: stop the workflow and wait for the next iteration
+    def decision_wait_process(self, state:AgentState)->str:
+        return 'process' if len(self._memory) > 0 else 'wait'
     
     # estimate the similarity between the memory and the prompt
-    def estimate_memory(self, state:AgentState)->AgentState:
-        prompt = state['prompt']
-        memory = self._memory
-        all_poses = [v['pose7d'] for v in memory.values()]
+    def process_memory(self, state:AgentState)->AgentState:
+
+        N_BEST = 5
         
-        best_blip_matches = get_best_matches_images_description_with_prompt(memory, prompt, self.N_BEST_SIMILARITY_MATCHES)
-        self._memory = dict(best_blip_matches).copy()
-        state['prior_score'] = [x[1]['prior_score'] for x in best_blip_matches]
+        prompt = state['prompt']
+        known_poses = state['known_poses']
+        memory = self._memory
+        
+        # prior: compare the user prompt with the blip description of the memory and filter the n best 
+        compute_prior_similarities(memory, prompt) # update in memory -> priori_scores key in memory.values()
+        best_priors_scores = sorted(memory.items(), key=lambda x: compute_prior_score(x[1]['prior_scores']), reverse=True)[:N_BEST] 
+        state['prior_scores'] = [compute_prior_score(x[1]['prior_scores']) for x in best_priors_scores]
 
-        percentage_of_exploration = self._spatial_api.get_percentage_of_exploration(all_poses)
-        state['percentage_of_exploration'] = percentage_of_exploration
-
-        clip_matches = [query_clip(image_path, prompts) for image_path, prompts in best_blip_matches]
+        # posterior: estimate the similarity between the user prompt and the best prior images
+        clip_matches = [(k, query_clip(data['local_image_path'], prompt)) for k, data in best_priors_scores]
         for k, score in clip_matches:
             self._memory[k]['posterior_score'] = score 
-        state['posterior_score'] = np.max([x[1] for x in clip_matches])
+        state['posterior_score'] = [compute_posterior_score(x[1]) for x in clip_matches]
 
+        # store the current knowledge wrt the full knowledge
+        percentage_of_exploration = self._spatial_api.get_percentage_of_exploration(known_poses)
+        state['percentage_of_exploration'] = percentage_of_exploration
+
+        state['current_workflow'].append('process_memory')
         return state
     
     # explore the environment: try to find a better match [optional]
@@ -156,7 +181,7 @@ class Agent:
         target_index = scores.index(best_posterior)
 
         # move 
-        target_pose = list(self._memory.values())[target_index]
+        target_pose = list(self._memory.values())[target_index]['pose7d']
         state['target_pose7d'] = target_pose
 
         return state
@@ -164,17 +189,16 @@ class Agent:
     def move(self, state:AgentState) -> AgentState:
         path_to_target = self._spatial_api.get_shortest_path(state['current_pose7d'], state['target_pose7d'])
         for path in path_to_target:
-            step_pose = self._spatial_api.get_pose_value(path)
-            self._hardware_operator.send_cmd(step_pose)
+            self._hardware_operator.send_cmd(path)
             time.sleep(1) # simulate the time to arrive to step pose
         return state 
 
     # compute the decision between explore and exploit for this step [mandatory]
-    def decision_explore_exploit(self, state:AgentState)->AgentState:
+    def decision_explore_exploit(self, state:AgentState)->str:
         
         percentage_of_exploration = state['percentage_of_exploration']
-        prior_estimation = state['prior_score']
-        posterior_estimation = state['posterior_score']
+        prior_estimation = state['prior_scores']
+        posterior_estimation = state['posterior_scores']
 
         # confidence in best matches: prior and posterior estimations
         confidence = compute_confidence(prior_estimation, posterior_estimation)
