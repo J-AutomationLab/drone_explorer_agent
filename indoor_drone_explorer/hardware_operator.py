@@ -40,11 +40,18 @@ def load_data(json_data_dir=DATABASE_JSON_PATH, keys_to_check=[]):
     return registered_data
 
 blip_data = load_data(DATABASE_BLIP2_PATH, ['blip'])
-blip_data = {k:v['blip'] for k,v in blip_data.items()}
+
+def pose_is_similar(pose1, pose2, tol=1e-6):
+    return sum(np.abs(np.array(pose1) - np.array(pose2))) < tol 
+
+def get_blip_data(pose7d):
+    target_data  = [v['blip'] for v in blip_data.values() if pose_is_similar(pose7d, v['pose7d'])]
+    return target_data.pop() 
 
 ##### MQTT ##### 
 
 MQTT_BROKER = 'localhost'
+#MQTT_BROKER = 'mqtt-broker'
 MQTT_PORT = 1883
 MQTT_TOPICS = {
     'in': {
@@ -59,7 +66,7 @@ MQTT_TOPICS = {
 TIME_CONTRAINT = .25 # seconds
 
 def reset_last_msg(): 
-    return {'image': None, 'pose7d': None, 'time': None}
+    return {'image': None, 'pose7d': None, 'time': time.time()}
 
 def last_msg_is_ok(last_msg): 
     local_memory = load_data()
@@ -71,8 +78,6 @@ def last_msg_is_ok(last_msg):
     # check if the pose is not already registered
     if len(local_memory) > 0:
         known_poses = [x['pose7d'] for x in local_memory.values()]
-        def pose_is_similar(pose1, pose2, tol=1e-5):
-            return all(abs(pose1[k] - pose2[k]) < tol for k in pose1)
 
         cond_pose_is_unknown = not any(pose_is_similar(last_msg['pose7d'], known) for known in known_poses)
         # cond_pose_is_unknown = last_msg['pose7d'] not in known_poses
@@ -127,17 +132,17 @@ class HWOperator:
             image_path = os.path.join(DATABASE_IMAGE_PATH, f'camera_img_{timestamp}.jpg')
             data_path = os.path.join(DATABASE_JSON_PATH, f'data_img_{timestamp}.json')
             try:
-                image = self.last_msg['image']
-                cv2.imwrite(image_path, image)
-
                 pose7d = self.last_msg['pose7d']
                 json_data = {
                     'pose7d': pose7d,
                     'local_image_path': image_path,
-                    'blip': blip_data['blip'],
+                    'blip': get_blip_data(pose7d),
                 }
                 with open(data_path, 'w') as f:
                     json.dump(json_data, f, indent=4)
+
+                image = self.last_msg['image']
+                cv2.imwrite(image_path, image)
             except Exception as e:
                 raise e 
             finally:
