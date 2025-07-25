@@ -9,7 +9,7 @@ from PIL import Image
 from sentence_transformers import SentenceTransformer, util
 from transformers import CLIPProcessor, CLIPModel
 
-from hardware_operator import HWOperator, load_data, DATABASE_MEMORY_PATH
+from hardware_operator import HWOperator, load_data, DATABASE_JSON_PATH
 from spatial_expert import SpatialAPI
 
 ##### models #####
@@ -119,7 +119,7 @@ class Agent:
 
     # load the database and filter the best matches [mandatory]
     def load_memory(self, state:AgentState)->AgentState:
-        self._memory = load_data(DATABASE_MEMORY_PATH, ['blip'])
+        self._memory = load_data(DATABASE_JSON_PATH, ['blip'])
         state['known_poses'] = [v['pose7d'] for v in self._memory.values()]
         state['current_workflow'].append('load_memory')
 
