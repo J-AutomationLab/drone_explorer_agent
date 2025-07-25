@@ -48,29 +48,50 @@ class SpatialAPI:
         self._graph.add_nodes_from(points)
         self._graph.add_edges_from(edges)
 
-    def get_pose_value(self, pose_idx):
+    def get_pose_point(self, pose_idx):
         return self._points.get(pose_idx)
+    
+    def keys_to_point_list(self, keys_list):
+        return [self.get_pose_point(k) for k in keys_list]
     
     def get_pose_key(self, pose_value):
         return get_index_from_points(pose_value)
+    
+    def points_to_key_list(self, points_list):
+        return [self.get_pose_key(p) for p in points_list]
     
     def get_neighbors(self, pose_point):
         pose_idx = self.get_pose_key([pose_point])
         return list(self._graph.adj[pose_idx])
     
     def get_closest_points(self, source_point, excluded_points=[]):
-        candidates_points = set(self._points.values()).difference(set(excluded_points))
+        # go to the index space for simpler computation
+        set_all_points = set(self._points.keys())
+        set_excluded_points = set(self.points_to_key_list(excluded_points))
+        source_key = self.get_pose_key(source_point)
+        
+        # exclude the points from the total
+        set_candidates_points = set_all_points.difference(set_excluded_points)
 
-        closest_paths = [self.get_shortest_path(source_point, candidate) for candidate in candidates_points]
-        min_path = min(len(p) for p in closest_paths)
-        closest_points = [p[-1] for p in closest_paths if len(p) == min_path]
+        # compute the shortest path for each candidate
+        paths_idx = [self.get_shortest_path(source_key, candidate_pt, output_as_points=False) for candidate_pt in set_candidates_points]
 
-        return closest_points
+        # get the minimal path
+        shortest_path = min(len(p) for p in paths_idx)
+        shortest_paths_idx = [p for p in paths_idx if len(p) == shortest_path]
+        shortest_paths_points = [self.keys_to_point_list(i) for i in shortest_paths_idx]
 
-    def get_shortest_path(self, source_point, target_point):
-        source_idx, target_idx = (self.get_pose_key() for p in [source_point, target_point])
-        path = nx.shortest_path(self._graph, source_idx, target_idx)[1:] # exclude the source 
-        return [self.get_pose_value(p) for p in path]
+        return shortest_paths_points # shape: len(shortest_path_points), shortest_path, len(current_pose)
+
+    def get_shortest_path(self, source, target, exclude_source_point=True, inputs_as_points=False, output_as_points=True):
+        source_key = source if not inputs_as_points else self.get_pose_key(source)
+        target_key = target if not inputs_as_points else self.get_pose_key(target)
+        path = nx.shortest_path(self._graph, source_key, target_key)
+        if exclude_source_point: 
+            path = path[1:]
+        if output_as_points:
+            return [self.get_pose_point(p) for p in path]
+        return path
     
     def filter_existing_points(self, request_list_points):
         return [point for point in request_list_points if point in self._points.values()]
@@ -82,5 +103,5 @@ class SpatialAPI:
 if __name__ == "__main__":
     spatial_api = SpatialAPI()
     pose_idx = input("Input the index of the pose to move: \n\t")
-    target_pose = spatial_api.get_pose_value(pose_idx)
+    target_pose = spatial_api.get_pose_point(pose_idx)
     print(target_pose)

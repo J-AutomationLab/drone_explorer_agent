@@ -21,7 +21,7 @@ clip_processor = CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32', u
 ##### utils function #####
 
 def compute_similarity_between_2_texts(txt1:str, txt2:str)->float:
-    embeddings = [txt_similarity_model.encode(txt, convert_to_tensor=True) for txt in [txt1,txt2]]
+    embeddings = txt_similarity_model.encode([txt1,txt2], convert_to_tensor=True)
     return float(util.cos_sim(*embeddings))
 
 def compute_prior_similarities(data:Dict[str, Dict[str, Any]], str_query:str): 
@@ -51,7 +51,7 @@ def compute_prior_score(prior_score_list)->float:
 def compute_posterior_score(posterior_score_list)->float:
     return np.mean(posterior_score_list)
 
-def compute_confidence(prior, posterior):
+def compute_confidence(prior:np.ndarray, posterior:np.ndarray)->np.ndarray:
     return (prior + 3 * posterior) / 4
 
 ##### memory state #####
@@ -59,22 +59,24 @@ class AgentState(TypedDict):
     prompt: str
     current_pose7d: List[float]
     known_poses: List[List[float]]
+    best_poses: List[List[float]]
     prior_scores: List[Tuple[str,float]] 
     posterior_scores: List[Tuple[str,float]] 
     percentage_of_exploration: float 
     current_workflow: List[str] 
-    target_pose7d: List[float]
+    path_to_target_pose7d: List[float]
 
 def get_initial_state(current_pose:List[float], prompt:str)->dict:
     return {
         "prompt": prompt,
         "current_pose7d": current_pose,
         "known_poses": [],
+        "best_poses": [],
         "prior_scores": [],
         "posterior_scores": [],
         "percentage_of_exploration": 0.0,
         "current_workflow": [],
-        "target_pose7d": [],
+        "path_to_target_pose7d": [],
     }
 
 ##### agent ##### 
@@ -109,11 +111,11 @@ class Agent:
 
         return builder.compile()
     
-    def run(self, user_prompt):
-        current_pose = self._hardware_operator.current_pose
+    def run(self, user_prompt:str, current_pose:List[float]=None)->AgentState:
+        current_pose = self._hardware_operator.current_pose if current_pose is None else current_pose 
         initial_state = get_initial_state(current_pose, user_prompt)
-        results = self._agent.invoke(initial_state)['decision']
-        return results
+        results_state = self._agent.invoke(initial_state)
+        return results_state
 
     # load the database and filter the best matches [mandatory]
     def load_memory(self, state:AgentState)->AgentState:
@@ -139,13 +141,14 @@ class Agent:
         # prior: compare the user prompt with the blip description of the memory and filter the n best 
         compute_prior_similarities(memory, prompt) # update in memory -> priori_scores key in memory.values()
         best_priors_scores = sorted(memory.items(), key=lambda x: compute_prior_score(x[1]['prior_scores']), reverse=True)[:N_BEST] 
-        state['prior_scores'] = [compute_prior_score(x[1]['prior_scores']) for x in best_priors_scores]
+        state['best_poses'] = [v[1]['pose7d'] for v in best_priors_scores]
+        state['prior_scores'] = np.array([compute_prior_score(x[1]['prior_scores']) for x in best_priors_scores])
 
         # posterior: estimate the similarity between the user prompt and the best prior images
         clip_matches = [(k, query_clip(data['local_image_path'], prompt)) for k, data in best_priors_scores]
         for k, score in clip_matches:
-            self._memory[k]['posterior_score'] = score 
-        state['posterior_score'] = [compute_posterior_score(x[1]) for x in clip_matches]
+            self._memory[k]['posterior_scores'] = score 
+        state['posterior_scores'] = np.array([compute_posterior_score(x[1]) for x in clip_matches])
 
         # store the current knowledge wrt the full knowledge
         percentage_of_exploration = self._spatial_api.get_percentage_of_exploration(known_poses)
@@ -156,40 +159,47 @@ class Agent:
     
     # explore the environment: try to find a better match [optional]
     def explore(self, state:AgentState)->AgentState:
-        state['decision'] = 'explore'
-        known_poses = [d['pose7d'] for d in load_data(DATABASE_MEMORY_PATH).values()]
+        known_poses = state['known_poses']
 
         # find the target location using the closest unknown nodes
         closest_points = self._spatial_api.get_closest_points(state['current_pose7d'], known_poses)
         assert len(closest_points) > 0
 
         # move 
-        target_pose = random.choice(closest_points)
-        state['target_pose7d'] = target_pose
+        path_to_target_pose = random.choice(closest_points) # get random trajectory
+        assert path_to_target_pose[-1] not in state['known_poses'] # last pose should not be known
+        assert all([p in state['known_poses'] for p in path_to_target_pose[:-1]]) # all previous pose should be known
+        
+        state['path_to_target_pose7d'] = path_to_target_pose
+
+        state['current_workflow'].append('explore')
 
         return state
 
     # exploit the memory: go the best registered match [optional]
     def exploit(self, state:AgentState)->AgentState:
-        state['decision'] = 'exploit'
-        best_posterior = state['posterior_score']
+        prior_estimation = state['prior_scores']
+        posterior_estimation = state['posterior_scores']
 
-        # find the target location using the best score 
-        scores = [x['posterior_score'] for x in self._memory.values()]
-        assert best_posterior in scores 
+        # find the best location in memory
+        confidence_array = compute_confidence(prior_estimation, posterior_estimation)
+        best_confidence_index = np.argmax(confidence_array)
+        best_pose = state['best_poses'][best_confidence_index]
+        assert best_pose in state['known_poses']
 
-        target_index = scores.index(best_posterior)
+        # move
+        path_to_target_pose = self._spatial_api.get_shortest_path(state['current_pose7d'], best_pose, inputs_as_points=True)
+        assert all([p in state['known_poses'] for p in path_to_target_pose])
+        state['path_to_target_pose7d'] = path_to_target_pose
 
-        # move 
-        target_pose = list(self._memory.values())[target_index]['pose7d']
-        state['target_pose7d'] = target_pose
+        state['current_workflow'].append('exploit')
 
         return state
 
     def move(self, state:AgentState) -> AgentState:
-        path_to_target = self._spatial_api.get_shortest_path(state['current_pose7d'], state['target_pose7d'])
-        for path in path_to_target:
-            self._hardware_operator.send_cmd(path)
+        path_to_target = state['path_to_target_pose7d']
+        for point in path_to_target:
+            self._hardware_operator.send_cmd(point)
             time.sleep(1) # simulate the time to arrive to step pose
         return state 
 
@@ -197,29 +207,32 @@ class Agent:
     def decision_explore_exploit(self, state:AgentState)->str:
         
         percentage_of_exploration = state['percentage_of_exploration']
+
+        # 0 or 100% of exploration cases
+        if percentage_of_exploration <= 0: return 'explore'
+        if percentage_of_exploration >= 1: return 'exploit'
+
+        # complex decision cases
         prior_estimation = state['prior_scores']
         posterior_estimation = state['posterior_scores']
 
         # confidence in best matches: prior and posterior estimations
-        confidence = compute_confidence(prior_estimation, posterior_estimation)
-        conservative_behavior = .5
+        confidence_array = compute_confidence(prior_estimation, posterior_estimation)
+        confidence = np.max(confidence_array)
 
         # decision based on exploration, confidence and behavior
-        decision_threshold = conservative_behavior * percentage_of_exploration + (1 - conservative_behavior) * confidence
+        exploit_score = percentage_of_exploration * confidence
 
-        # random event
-        decision_event_value = random.random()
-        if decision_event_value >= decision_threshold: 
+        # random approach 
+        if random.random() <= exploit_score: 
             return "exploit"
         return "explore"
 
 if __name__ == "__main__":
-    system_prompt = (
-        "You are a drone navigation assistant agent. "
-        "You receive a 7D pose and image at each step, search previous observations, "
-        "evaluate similarity, and decide to explore or exploit the environment. "
-        "Use the prompt provided to guide decision-making."
-    )
-    user_prompt = input("Input the user prompt: \n\t")
-    # user_prompt = "Find the bedroom."
-    full_prompt = f"<|system|>\n{system_prompt}\n<|user|>\n{user_prompt}\n<|assistant|>\n"
+    
+    agent = Agent()
+    current_pose = input("Input your current pose as a list of 7 float:\n\t")
+    user_prompt = input("Input your command: what room should I find?\n\t ")
+
+    results_state = agent.run(user_prompt, current_pose)
+    print(results_state)
