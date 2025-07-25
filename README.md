@@ -1,61 +1,158 @@
 # README 
 
-This repository is a drone able to find a specific room or object into a controlled indoor environment. The main focus of this project is the decision agent and its workflow, not the hardware synchronization nor the control of the physics. Also, since my laptop has a very few computing power, I had to compute some process using google colab. Thus, some results are already precomputed instead of being computed in real time. Also, the spatial data management has been oversimplified with a simple graph.
+## DESCRIPTION
 
-The system is divided in 3 main components:
-* Simulator
-* Database 
-* Agent 
+The system is currently divided in two different dockers containers (it was very difficult to merge the requirements for the application in the same docker...):
+    * The first docker containts the simulator. It runs the webots simulator.
+    * The second docker contains the system. It runs the agent.
+    * The communication between the simulator and the system is done using mosquitto.
 
-## Simulator 
-The simulation is made using *webots*:
-* I designed the robot in the *FlyingCamera.wbo* file. It is a simple cone shape with an embedded camera. 
-* The world is basically the *complete appartment* world designed by *amazon* where the robot has been added.
-* The robot is controlled by the *mqtt_external_controller.py*. 
+## SET UP
 
-### Functionalities
-The *mqtt_external_controller.py* regroups the following functions:
-* It read the pose7d (pose3d + rotation4d) information and publish it using MQTT. 
-* It read the camera feed of the embedded camera and publish the image using MQTT.
-* It can read an external command subscribed on MQTT to update its pose7d. 
+### SET UP THE SIMULATOR IMAGE
 
-#### choice of design: Webots
-I choose Webots as the simulation engine because I could not make Gazebo work in a docker. When I could, I could not load the world. And I did not want a local install or create a full world by myself. Unlike Gazebo, an efficient docker image with ROS2 and Webots already existed and could be pulled and worked efficiently with this world. 
+Download the docker base:
 
-#### Choice of design: MQTT
-I choose MQTT as the communication broker between the Simulator and the Database for the following reasons:
-* Even if the docker image I pulled to build my simulator implement ROS2 Foxy, I could not call the ROS2 rclpy library during the call of the controller - probably because of some docker option (with a local install, is should not have been a problem). 
-* MQTT is simpler but efficient and popular for the communication between the edge and hardware. I use it to transfer data from the controller to the Agent IO node, also installed inside the docker. However, I could have installed the Agent IO node outside of docker and still access the data (with some annoying changes in the config, obviously)...
+`docker pull alexnic/ros2_webots_nonvidia:version1`
 
-#### Choice of design: Processes
-Since the hardware is generally limited in processing power, the heavy processes are done in the edge and the controller has been build as light as possible.
+Run the image with your settings:
 
-## Database 
-The database is a big word for a set of folders:
-* The images are stored in the */database/image* folder as jpg files.
-* The pose and estimated data are stored in the */database/json* folder as json files.
+`docker run -it -u $(id -u):$(id -g) -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw \ -v /path/to/project/root:/home/hostuser/workspace/colcon_ws --device /dev/dri --entrypoint /bin/bash your_simulation_image`
 
-The database is managed by an *operator.py* node. The database is a parallel component of the agent:
-* It manages the communication with the hardware controller using MQTT: it read, process and write the robot's sensor data into the database and publish the command from the agent to the robot. The data arrived asynchronously but this node synchronize the writting of the different MQTT input channels.
-* The received pose are not processed and are stored immediatly as it is.
-* The received images are stored then their text description is estimated usign BLIP2. BLIP2 has been computed on each possible input image using google colab. In the demonstration system, it directly calls the results from a file.
+In the docker, install the following libraries:
 
-#### Choice of design: writing data criteria
-The image and pose are stored only if this data does not exist in the database already (to avoid data duplication and keep it readable, even with a few data). The current decision criteria is:
-* Pose exist in the registered json file -> Data (image + json) not written. 
-* This design is simple and possible since we use precomputed discrete poses. The similarity criteria in a real time application could be computed instead of simply compared.
-* This design is also possible since we work in a fixed environment (fixed objects poses, fixed light...). As a direct consequence, the images taken at the same pose, whatever the time, are always identical. In a real world, we should update the database with the new image if different for the same pose (probably another data architecture should be chosen). 
+`apt install mosquitto mosquitto-clients`
+`pip3 install numpy paho-mqtt opencv-python`
+> You may need to exec the container as root to do that... 
 
-#### Choice of design: not ROS2
-Normally I would recommand using ROS2 for this usecase. But since the system is simplified, the data is written in the database and is not passed directly to the agent as it is in real-time, setting up ROS2 would be a loss of time without any real gain. Indeed, the global architecture will be simplified and the operator will be set as an agent's attribute objet:
-* The MQTT input data will still be processed since the *on_message* function is a callback.
-* The MQTT command data is triggered by the agent, which does not change anything like this. 
+Start mosquitto:
 
-#### Choice of design: using BLIP2
-The image description are estimated using BLIP2. The output is a list of text description of the image:
-* The first item is the global description of the image, ie without any input prompt. The description is raw and general.
-* The following items are the image's descriptions generated from a list of input prompts. The description then can answer a question, or focus on a specific detail. By default, since we alreay know that the robot is supposed to find a specific room, the model answer to the following prompt: *In what place am I?*. Then, we have by default a list of 2 texts descriptions.
+`systemctl start mosquitto`
+> May be there is some other setup to do, I clearly do not remember all the set up actions for this... 
 
-This process transforms an image as a text, which will be used by the agent later to easily filter the explored room before exploring. The decision between exploring or exploiting the known image is based on the first description of these images. 
+Try mosquitto:
 
-## Agent 
+> Terminal 1: `mosquitto_sub -t "test/topic"`
+> Terminal 2: `mosquitto_pub -t "test/topic" -m "Test message"`
+
+---
+### RUN THE SIMULATOR 
+
+Run the simulator:
+
+`webots ~/workspace/colcon_ws/src/Indoor_drone_explorer/webots_ws/worlds/my_complete_apartment.wbf`
+> You should see a flat seen from above with a conic drone in the entrance hallway. 
+> If mosquitto is still open, you should have a message showing the connection between the drone controller and the broker. Otherwise, just restart mosquitto and make sure to be connected.
+
+Run the hardware_controller script:
+
+`python3 ~/workspace/colcon_ws/src/Indoor_drone_explorer/indoor_drone_explorer/hardware_operator.py`
+> You should also see the connection on the mosquitto broker's terminal.
+> You should see a list of 7 float running in the simulator's terminal.
+> You should have see this message: 
+>   Will save in the data folder: /home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/images
+>   hardware_operator.py:103: DeprecationWarning: Callback API version 1 is deprecated, update to latest version
+>     self._mqtt_client = mqtt.Client()
+>   -> Input the pose7d where to move the robot: [x1, x2, x3, r1, r2, r3, r4]:
+
+Try to input manually this list in this terminal (be careful of the spaces and brackets): 
+
+`[-2.1, -7.45619, 1.24828, 0.0006112608201322481, 0.7082067916052212, 0.7060047922531747, 3.13841]`
+> You should see the robot teleported to another position, its camera feed and the position printed in the simulator's terminal changed. This is how we move the robot in this demo.
+
+---
+### SET UP THE AGENT IMAGE 
+
+Download the docker base:
+
+`docker pull pytorch/pytorch:2.7.1-cuda11.8-cudnn9-runtime` (or another tag suiting your cuda need).
+> You should make sure to have already setup nvidia on your host machine.
+
+Run the image with your settings:
+
+`docker run -it -u $(id -u):$(id -g) -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw \ -v /path/to/project/root:/home/hostuser/workspace/colcon_ws --device /dev/dri --gpus all --entrypoint /bin/bash your_system_image`
+
+In the docker, install the following libraries:
+
+`apt install mosquitto mosquitto-clients`
+`conda install -c conda-forge opencv`
+`conda install pillow`
+`pip3 install paho-mqtt sentence-transformers transformers`
+> You may need to exec the container as root to do that... 
+> I had some problem to setup opencv. May be you will have to play with it as well...
+
+Start mosquitto:
+
+`systemctl start mosquitto`
+> May be there is some other setup to do, I clearly do not remember all the set up actions for this... 
+
+Try mosquitto:
+
+> Terminal 1: `mosquitto_sub -t "test/topic"`
+> Terminal 2: `mosquitto_pub -t "test/topic" -m "Test message"`
+
+---
+### RUN THE AGENT
+
+Listen the system decision on a mosquitto publisher:
+
+`mosquitto_sub -h localhost -p 1883 -t hardware_in/robot/pose7d`
+
+Run the agent:
+
+`cd ~/workspace/colcon_ws/src/Indoor_drone_explorer/indoor_drone_explorer`
+`python3`
+`>>> from agent import *`
+`>>> agent = Agent()`
+`>>> user_prompt = 'find the kitchen'`
+`>>> current_pose = <PASTE THE CURRENT POSITION FROM THE WEBOT TERMINAL HERE>`
+`>>> agent.run(user_prompt, current_pose)`
+> You will have a result like this: 
+> 
+> {'prompt': 'find the kitchen', 'current_pose7d': [-5.61966, -5.73164, 1.23808, 0.9342146278813679, -0.2532738991153274, -0.25118789994622764, 1.63606], 'known_poses': [[-0.87, -7.46, 1.25, -0.5776832276006791, -0.5776832276006791, -0.5766837756498129, -2.09], [-2.1, -7.45619, 1.24828, 0.0006112608201322481, 0.7082067916052212, 0.7060047922531747, 3.13841], [-4.82, -7.44772, 1.24449, 0.0006112608201322481, 0.7082067916052212, 0.7060047922531747, 3.13841], [-5.41, -7.4459, 1.24367, -0.5776830771686436, -0.5776830771686436, -0.5766840770351942, -2.089995307179586], [-5.41, -7.4459, 1.24367, 0.1865310645653143, 0.6956492407899829, 0.6937422401298994, 2.76978], [-5.62511, -7.48164, 1.24352, -0.9999970711095111, 0.002260400160736421, 0.0008650800615156003, -1.5676853071795867], [-5.61966, -5.73164, 1.23808, 0.9342146278813679, -0.2532738991153274, -0.25118789994622764, 1.63606]], 'best_poses': [[-5.61966, -5.73164, 1.23808, 0.9342146278813679, -0.2532738991153274, -0.25118789994622764, 1.63606], [-5.62511, -7.48164, 1.24352, -0.9999970711095111, 0.002260400160736421, 0.0008650800615156003, -1.5676853071795867], [-5.41, -7.4459, 1.24367, 0.1865310645653143, 0.6956492407899829, 0.6937422401298994, 2.76978], [-5.41, -7.4459, 1.24367, -0.5776830771686436, -0.5776830771686436, -0.5766840770351942, -2.089995307179586], [-2.1, -7.45619, 1.24828, 0.0006112608201322481, 0.7082067916052212, 0.7060047922531747, 3.13841]], 'prior_scores': array([0.4535868 , 0.35924914, 0.35709518, 0.35021389, 0.33919612]), 'posterior_scores': array([0.47087315, 0.47080266, 0.5011265 , 0.50402105, 0.4151104 ], dtype=float32), 'percentage_of_exploration': 0.6363636363636364, 'current_workflow': ['load_memory', 'process_memory', 'explore'], 'path_to_target_pose7d': [[-5.61966, -5.73164, 1.23808, -0.575815941301038, 0.5794159409340522, 0.5768129411994033, -2.0952053071795866]]}
+> 
+> You should also have a list of pose published in your mosquitto subscriber.
+
+## RUN THE DEMO
+
+I did not have the time to set up the connection between the docker images, so the information will be passed manually (sorry for that)... But it's not so bad, since you input manually the information, you have time to analyse the system behavior. In all cases, this system is not ready for something else than a demo since I had to make it simpler... 
+
+---
+### INITIALIZE THE DEMO
+
+* Run the simulator.
+* Copy the pose running in the webot's terminal. You may have to pause the simulation to copy easily...
+* Run the agent. As explained, paste this pause as the current pose. 
+
+### MANAGE THE MEMORY [OPTIONAL]
+
+* Go to `~/workspace/colcon_ws/src/Indoor_drone_explorer/database`.
+* To consider the flat as unknown, you can remove all the images located in the `images` folder. If you do, remove the same data located in the `json_data_demo` folder. These folders are linked. If you remove an image, remove also the json data with the same timestamp (and vice versa).
+* Normally, the current pose is generated again if the simulator works. 
+
+### UPDATE THE AGENT DECISION IN THE SYSTEM
+
+* Copy the last pose of the output of the agent (from the mosquitto terminal or the `path_to_target_pose7d` flag outputed by the agent). 
+* Go to the **simulation image's** terminal where the `hardware_controller.py` script is running. Paste it as input as explained in the set up.
+* You should see the robot move. If the position is unknown, an image and a json data will be generated in the database. 
+
+### COMPUTE THE AGENT AGAIN
+
+Do like the first step until here... after moving to all the positions, the drone will find the best match in the flat. 
+
+## DISCUSSION ABOUT THE DESIGN 
+
+### TWIN DOCKER IMAGE
+... 
+
+### WEBOTS
+...
+
+### MOSQUITTO COMMUNICATION
+...
+
+### LANGGRAPH FRAMEWORK FOR THE AGENT 
+...
+
+### DECISION METRICS AND COMPUTATION
+...
