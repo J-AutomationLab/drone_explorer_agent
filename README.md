@@ -124,18 +124,21 @@ I did not have the time to set up the connection between the docker images, so t
 * Copy the pose running in the webot's terminal. You may have to pause the simulation to copy easily...
 * Run the agent. As explained, paste this pause as the current pose. 
 
+---
 ### MANAGE THE MEMORY [OPTIONAL]
 
 * Go to `~/workspace/colcon_ws/src/Indoor_drone_explorer/database`.
 * To consider the flat as unknown, you can remove all the images located in the `images` folder. If you do, remove the same data located in the `json_data_demo` folder. These folders are linked. If you remove an image, remove also the json data with the same timestamp (and vice versa).
 * Normally, the current pose is generated again if the simulator works. 
 
+---
 ### UPDATE THE AGENT DECISION IN THE SYSTEM
 
 * Copy the last pose of the output of the agent (from the mosquitto terminal or the `path_to_target_pose7d` flag outputed by the agent). 
 * Go to the **simulation image's** terminal where the `hardware_controller.py` script is running. Paste it as input as explained in the set up.
 * You should see the robot move. If the position is unknown, an image and a json data will be generated in the database. 
 
+---
 ### COMPUTE THE AGENT AGAIN
 
 Do like the first step until here... after moving to all the positions, the drone will find the best match in the flat. 
@@ -143,21 +146,22 @@ Do like the first step until here... after moving to all the positions, the dron
 ## DISCUSSION ABOUT THE DESIGN 
 Here is a deeper dive into the design, the functions, the constraints and the tradeoffs. 
 
----
-### FUNCTIONS AND PROCESSES
+## FUNCTIONS AND PROCESSES
 
 This system is an agent controlling a flying drone movements using the camera feed to explore the environment. 
 In one process loop: 
 * The user gives an order to the drone : "Find yhe kitchen".
 * The drone compute a choice between exploring and exploiting the memory. If the memory is empty, the drone will explore. If the environment is fully explored, the drone will exploit.
 
-#### DRONE OBSERVATION AND CONTROL
+---
+### DRONE OBSERVATION AND CONTROL
 The drone's hardware controller listen to the pose estimate and the camera feed. The data is then saved in the database. 
 > If the position is already registered, the data is not written. This choice of design is explained more in details later.
 
 The controller can also make the robot moves in the environment.
 
-#### AGENT DECISION PROCESS
+---
+### AGENT DECISION PROCESS
 
 The output of the agent reasoning is the next position. In a first place, the agent compute the choice of exploring or exploiting. 
 
@@ -168,16 +172,36 @@ The output of the agent reasoning is the next position. In a first place, the ag
 
 > The `confidence_score` is a combination of the `prior_score` (match between the image's BLIP2 description and the user's input prompt) and `posterior_score` (bounded CLIP's output logits using the user's input prompt).
 
-### MAIN CHOICES OF DESIGN
+The target pose is then chosen depending of the explore or exploit strategy:
+* The position linked to the best confidence match is chosen as the target pose with the exploiting mode.
+* The closest position out of the known area is chosen as the target pose with the exploring mode.
+
+---
+### KNOWLEDGE UPDATE
+
+During the movement to the target pose, the camera feed and their poses are stored in the database if unknown. Since the agent load the database as its memory at every step, it can use the new information for its next decision.
+
+---
+### CONSTRAINTS AND TRADEOFFS
 
 #### TWIN DOCKER IMAGE
-... 
+
+The simulator and the agent are the two components of the whole system. Each component has been installed as isolated docker applications. 
+
+This choice had been driven by the difficulty of installing torch in the webots environment and the limited time allowed for the setup.
 
 #### WEBOTS
-...
+
+The first natural choice was to use gazebo in a ros2 docker image. The simulator would have used the `complete_appartment.world` designed by **Amazon** (you can find it freely accessible on their own git repo). 
+
+Unfortunately, setting up a working instance of gazebo was very difficult but possible, but not using the world file. The simplest choice was then to directly pull a ros2 webots docker image (ref the INSTALLATION). 
 
 #### MOSQUITTO COMMUNICATION
-...
+
+Control a robot in webots requires to design a script able to read and set some internal variables.
+> Several language are possible but I chose python by preference and simplicity.
+
+Since the system focus on the reasoning than the controlling dimension, the robot does not implement any physics for simplicity purposes. The control of the robot movement is then greatly simplified and justify the choice of create the simplest robot possible for this task instead of pulling an existing robot.
 
 #### LANGGRAPH FRAMEWORK FOR THE AGENT 
 ...
