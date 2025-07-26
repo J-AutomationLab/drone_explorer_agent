@@ -177,7 +177,7 @@ The target pose is then chosen depending of the explore or exploit strategy:
 * The closest position out of the known area is chosen as the target pose with the exploring mode.
 
 ---
-### KNOWLEDGE UPDATE
+### KNOWLEDGE UPDATES
 
 During the movement to the target pose, the camera feed and their poses are stored in the database if unknown. Since the agent load the database as its memory at every step, it can use the new information for its next decision.
 
@@ -198,13 +198,45 @@ Unfortunately, setting up a working instance of gazebo was very difficult but po
 
 #### MOSQUITTO COMMUNICATION
 
-Control a robot in webots requires to design a script able to read and set some internal variables.
+Control a robot in webots requires to design a script able to read and set some internal variables. MOSQUITTO has been chosen over ROS2 because using ROS2 in the robot's controller script in the Webots computation space was not possible without a proper investigation. Despite the strenghts of ROS2, investigating it will be time consuming for little value.
 > Several language are possible but I chose python by preference and simplicity.
+
+I did not have the time to set up the communication between the dockers directly. This is one of the main next upgrade since the communication between the simulation and the agent is currently manually pasted.
+
+#### ROBOT CONTROL
 
 Since the system focus on the reasoning than the controlling dimension, the robot does not implement any physics for simplicity purposes. The control of the robot movement is then greatly simplified and justify the choice of create the simplest robot possible for this task instead of pulling an existing robot.
 
-#### LANGGRAPH FRAMEWORK FOR THE AGENT 
-...
+#### DISCRETE SPACE 
 
-#### DECISION METRICS AND COMPUTATION
-...
+Because of the lack of a direct and automatic communication between both of the components and because the hardware used to develop this demo was not good enough to run efficiently small LLM or ViT (like BLIP2 or Deepseek-r1), pre-computing some results (BLIP2) using images taken from well chosen locations is a good enough tradeoff for develop this prototype. The `spatial_api.py` script manages the space and implement functions like returning the closest path between two chosen points. 
+> The description made by BLIP2 has been made using `google colab`. CLIP and SentenceTransfornmers could be infered efficiently on the dev hardware.
+
+Using a discrete space of 11 different locations, the demo can be shown entirely even running the communication manually and moving to the target position step by step. 
+
+#### LANGGRAPH FRAMEWORK FOR THE AGENT 
+
+`Langgraph` handles perfectly cases where the agent's workflow should be managed with control. Since the workflow is simple, using a `ReAct` agent is therefore useless here. A direct controlled graph can handle the case well enough. 
+> In this case, the agent's workflow is:
+> * Load the updated memory from the database.
+> * Decide between waiting or processing further wrt of if the retrieved knowledge is empty or not. If empty, the process ends here. 
+> * Process the memory to retrieve the best priors matches and compute their posterior scores wrt the user prompt. Also get the exploration percentage estimate used in the next step.
+> * Decide between explore the environment to gather more memory and increase the chance to find a better match or exploit the memory directly. This choice is randomly made using a decision threshold depending on the prior and posterior match scores and the percentage of exploration. The next target is then chosen in the closest unknown locations (explore) or as the location of the best match of the decision score computed (exploit). If the percentage of exploration is 0. (respectively 1.), the agent always choose to explore (exploit).
+> * Compute a path to the target position if note givene and control the movement until there.
+
+### NEXT SYSTEM UPGRADE
+
+WHAT TO INVESTIGATE AND UPGRADE:
+* Set up the direct and automatic communication between the simulator and the agent to make the real time possible (and remove the annoying copy-paste of information between these subsystems).
+* Upgrade the discrete space as a linear and continue space to make it more realisitic. This system will be a very huge upgrade since the main design is based on this simplification. If the system handles bigger space, the database will need to be far much more robust than a set of jsons.
+* If the hardware allows it, computing BLIP2 in real time would be greater and make the system usable on more case scenarios.
+* Using real data instead of a simulated environment (or increase the simulation's realism by adding some variance in the space wrt time).
+* Monitor and explain the process advance in real time to the user using a LLM. Also, advanced uses of CLIP and BLIP2 would be possible using the power of the LLM.
+* Use ROS2 to parallelize the processes of the reasoning agent annd use more advanced feature (like an action to control the movement to the target position instead of a list iteration calls...).
+
+WHAT NOT TO UPGRADE:
+* Using a LLM in the agent graph would be costly for no or very low value here.
+* Upgrade the robot. Since the point of this system is to develop the reasoning agent instead of the hardware control, this would be of little use for the upgrade of the agent directly. Indeed, the agent finds the next target and call the existing move function. Write a more complex function does not change the agent reasoning.
+
+# AUTHOR
+Jerome SUSGIN at bluefox[dot]github[at]gmail[dot]com - Feel free to contact me if you need further information.
