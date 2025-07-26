@@ -3,9 +3,9 @@
 ## DESCRIPTION
 
 The system is currently divided in two different dockers containers (it was very difficult to merge the requirements for the application in the same docker...):
-    * The first docker containts the simulator. It runs the webots simulator.
-    * The second docker contains the system. It runs the agent.
-    * The communication between the simulator and the system is done using mosquitto.
+* The first docker containts the simulator. It runs the webots simulator.
+* The second docker contains the system. It runs the agent.
+* The communication between the simulator and the system is done using mosquitto.
 
 ## SET UP
 
@@ -141,18 +141,46 @@ I did not have the time to set up the connection between the docker images, so t
 Do like the first step until here... after moving to all the positions, the drone will find the best match in the flat. 
 
 ## DISCUSSION ABOUT THE DESIGN 
+Here is a deeper dive into the design, the functions, the constraints and the tradeoffs. 
 
-### TWIN DOCKER IMAGE
+---
+### FUNCTIONS AND PROCESSES
+
+This system is an agent controlling a flying drone movements using the camera feed to explore the environment. 
+In one process loop: 
+* The user gives an order to the drone : "Find yhe kitchen".
+* The drone compute a choice between exploring and exploiting the memory. If the memory is empty, the drone will explore. If the environment is fully explored, the drone will exploit.
+
+#### DRONE OBSERVATION AND CONTROL
+The drone's hardware controller listen to the pose estimate and the camera feed. The data is then saved in the database. 
+> If the position is already registered, the data is not written. This choice of design is explained more in details later.
+
+The controller can also make the robot moves in the environment.
+
+#### AGENT DECISION PROCESS
+
+The output of the agent reasoning is the next position. In a first place, the agent compute the choice of exploring or exploiting. 
+
+> If the memory is empty, ie the robot didn't explore at all, the agebt will choose to explore. In the opposite case where the memory is full, ie all the environment has been explored, the agent will choose to exploit the memory. 
+
+> In all the other cases, the agent will compute a probability of exploring or exploiting based on the `percentage_of_exploration` (returned by the `spatial_api`) and the `confidence_score` computed from the data currently registered in the memory (database).
+> `PROBABILITY OF EXPLOITING = confidence_score * percentage_of_exploration`. 
+
+> The `confidence_score` is a combination of the `prior_score` (match between the image's BLIP2 description and the user's input prompt) and `posterior_score` (bounded CLIP's output logits using the user's input prompt).
+
+### MAIN CHOICES OF DESIGN
+
+#### TWIN DOCKER IMAGE
 ... 
 
-### WEBOTS
+#### WEBOTS
 ...
 
-### MOSQUITTO COMMUNICATION
+#### MOSQUITTO COMMUNICATION
 ...
 
-### LANGGRAPH FRAMEWORK FOR THE AGENT 
+#### LANGGRAPH FRAMEWORK FOR THE AGENT 
 ...
 
-### DECISION METRICS AND COMPUTATION
+#### DECISION METRICS AND COMPUTATION
 ...
