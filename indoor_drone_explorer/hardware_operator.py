@@ -16,13 +16,11 @@ DATABASE_JSON_PATH = 'your-path-to/database/json' # TODO: update your path
 
 DATABASE_IMAGE_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/images' 
 DATABASE_JSON_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/json_data_demo'
-DATABASE_MEMORY_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/json_data_memory'
 DATABASE_BLIP2_PATH = '/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/json_data_blip2'
 
 print(f"Will save in the data folder: {DATABASE_IMAGE_PATH}")
 os.makedirs(DATABASE_IMAGE_PATH, exist_ok=True)
 os.makedirs(DATABASE_JSON_PATH, exist_ok=True)
-os.makedirs(DATABASE_MEMORY_PATH, exist_ok=True)
 
 def load_data(json_data_dir=DATABASE_JSON_PATH, keys_to_check=[]):
 

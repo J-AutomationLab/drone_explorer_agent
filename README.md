@@ -9,6 +9,19 @@ The system is currently divided in two different dockers containers (it was very
 
 ## SET UP
 
+### SET UP THE COMMUNICATION BROKER
+
+The broker handles the communications between the simulator and the agent. 
+
+
+Create the docker network:
+
+`docker network create mqtt_net`
+
+Run a docker container in the background:
+
+`docker run -d --name mqtt-broker --network mqtt_net eclipse-mosquitto:2   sh -c "printf 'listener 1883\nallow_anonymous true\n' > /mosquitto/config/mosquitto.conf && \ mosquitto -c /mosquitto/config/mosquitto.conf -v"`
+
 ### SET UP THE SIMULATOR IMAGE
 
 Download the docker base:
@@ -17,7 +30,7 @@ Download the docker base:
 
 Run the image with your settings:
 
-`docker run -it -u $(id -u):$(id -g) -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw \ -v /path/to/project/root:/home/hostuser/workspace/colcon_ws --device /dev/dri --entrypoint /bin/bash your_simulation_image`
+`docker run -it -u $(id -u):$(id -g) -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw \ -v /path/to/project/root:/home/hostuser/workspace/colcon_ws --device /dev/dri --network mqtt_net --entrypoint /bin/bash your_simulation_image`
 
 In the docker, install the following libraries:
 
@@ -44,22 +57,6 @@ Run the simulator:
 > You should see a flat seen from above with a conic drone in the entrance hallway. 
 > If mosquitto is still open, you should have a message showing the connection between the drone controller and the broker. Otherwise, just restart mosquitto and make sure to be connected.
 
-Run the hardware_controller script:
-
-`python3 ~/workspace/colcon_ws/src/Indoor_drone_explorer/indoor_drone_explorer/hardware_operator.py`
-> You should also see the connection on the mosquitto broker's terminal.
-> You should see a list of 7 float running in the simulator's terminal.
-> You should have see this message: 
->   Will save in the data folder: /home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/images
->   hardware_operator.py:103: DeprecationWarning: Callback API version 1 is deprecated, update to latest version
->     self._mqtt_client = mqtt.Client()
->   -> Input the pose7d where to move the robot: [x1, x2, x3, r1, r2, r3, r4]:
-
-Try to input manually this list in this terminal (be careful of the spaces and brackets): 
-
-`[-2.1, -7.45619, 1.24828, 0.0006112608201322481, 0.7082067916052212, 0.7060047922531747, 3.13841]`
-> You should see the robot teleported to another position, its camera feed and the position printed in the simulator's terminal changed. This is how we move the robot in this demo.
-
 ---
 ### SET UP THE AGENT IMAGE 
 
@@ -70,7 +67,7 @@ Download the docker base:
 
 Run the image with your settings:
 
-`docker run -it -u $(id -u):$(id -g) -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw \ -v /path/to/project/root:/home/hostuser/workspace/colcon_ws --device /dev/dri --gpus all --entrypoint /bin/bash your_system_image`
+`docker run -it -u $(id -u):$(id -g) -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix:rw \ -v /path/to/project/root:/home/hostuser/workspace/colcon_ws --device /dev/dri --gpus all --network mqtt_net --entrypoint /bin/bash your_system_image`
 
 In the docker, install the following libraries:
 
@@ -105,8 +102,7 @@ Run the agent:
 `>>> from agent import *`
 `>>> agent = Agent()`
 `>>> user_prompt = 'find the kitchen'`
-`>>> current_pose = <PASTE THE CURRENT POSITION FROM THE WEBOT TERMINAL HERE>`
-`>>> agent.run(user_prompt, current_pose)`
+`>>> agent.run(user_prompt)`
 > You will have a result like this: 
 > 
 > {'prompt': 'find the kitchen', 'current_pose7d': [-5.61966, -5.73164, 1.23808, 0.9342146278813679, -0.2532738991153274, -0.25118789994622764, 1.63606], 'known_poses': [[-0.87, -7.46, 1.25, -0.5776832276006791, -0.5776832276006791, -0.5766837756498129, -2.09], [-2.1, -7.45619, 1.24828, 0.0006112608201322481, 0.7082067916052212, 0.7060047922531747, 3.13841], [-4.82, -7.44772, 1.24449, 0.0006112608201322481, 0.7082067916052212, 0.7060047922531747, 3.13841], [-5.41, -7.4459, 1.24367, -0.5776830771686436, -0.5776830771686436, -0.5766840770351942, -2.089995307179586], [-5.41, -7.4459, 1.24367, 0.1865310645653143, 0.6956492407899829, 0.6937422401298994, 2.76978], [-5.62511, -7.48164, 1.24352, -0.9999970711095111, 0.002260400160736421, 0.0008650800615156003, -1.5676853071795867], [-5.61966, -5.73164, 1.23808, 0.9342146278813679, -0.2532738991153274, -0.25118789994622764, 1.63606]], 'best_poses': [[-5.61966, -5.73164, 1.23808, 0.9342146278813679, -0.2532738991153274, -0.25118789994622764, 1.63606], [-5.62511, -7.48164, 1.24352, -0.9999970711095111, 0.002260400160736421, 0.0008650800615156003, -1.5676853071795867], [-5.41, -7.4459, 1.24367, 0.1865310645653143, 0.6956492407899829, 0.6937422401298994, 2.76978], [-5.41, -7.4459, 1.24367, -0.5776830771686436, -0.5776830771686436, -0.5766840770351942, -2.089995307179586], [-2.1, -7.45619, 1.24828, 0.0006112608201322481, 0.7082067916052212, 0.7060047922531747, 3.13841]], 'prior_scores': array([0.4535868 , 0.35924914, 0.35709518, 0.35021389, 0.33919612]), 'posterior_scores': array([0.47087315, 0.47080266, 0.5011265 , 0.50402105, 0.4151104 ], dtype=float32), 'percentage_of_exploration': 0.6363636363636364, 'current_workflow': ['load_memory', 'process_memory', 'explore'], 'path_to_target_pose7d': [[-5.61966, -5.73164, 1.23808, -0.575815941301038, 0.5794159409340522, 0.5768129411994033, -2.0952053071795866]]}
@@ -115,7 +111,7 @@ Run the agent:
 
 ## RUN THE DEMO
 
-I did not have the time to set up the connection between the docker images, so the information will be passed manually (sorry for that)... But it's not so bad, since you input manually the information, you have time to analyse the system behavior. In all cases, this system is not ready for something else than a demo since I had to make it simpler... 
+Each time the `agent.run` method, the agent will choose to explore the unexplored environment or exploit the explored environment. For now, this function has to be called manually every time until convergence to the exploitation **COMLPETE BEHAVIOR WILL BE IMPLEMENTED LATER**.
 
 ---
 ### INITIALIZE THE DEMO
