@@ -197,8 +197,6 @@ Unfortunately, setting up a working instance of gazebo was very difficult but po
 Control a robot in webots requires to design a script able to read and set some internal variables. MOSQUITTO has been chosen over ROS2 because using ROS2 in the robot's controller script in the Webots computation space was not possible without a proper investigation. Despite the strenghts of ROS2, investigating it will be time consuming for little value.
 > Several language are possible but I chose python by preference and simplicity.
 
-I did not have the time to set up the communication between the dockers directly. This is one of the main next upgrade since the communication between the simulation and the agent is currently manually pasted.
-
 #### ROBOT CONTROL
 
 Since the system focus on the reasoning than the controlling dimension, the robot does not implement any physics for simplicity purposes. The control of the robot movement is then greatly simplified and justify the choice of create the simplest robot possible for this task instead of pulling an existing robot.
