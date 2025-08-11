@@ -2,6 +2,7 @@ import random
 import time 
 from typing import TypedDict, Dict, List, Tuple, Any
 
+import cv2 # used only to avoid dynamic import errors
 import numpy as np
 import torch 
 from langgraph.graph import StateGraph, END

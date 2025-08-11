@@ -39,11 +39,13 @@ class RobotController:
 
 try:
     # MQTT objects
+    #mqtt_broker = 'localhost'
+    mqtt_broker = 'mqtt-broker'
     mqtt_client = mqtt.Client()
     mqtt_client.on_connect = on_connect 
     mqtt_client.on_message = on_message
-    mqtt_client.connect("localhost", 1883)
-    #mqtt_client.connect("mqtt-broker", 1883)
+    mqtt_client.connect(mqtt_broker, 1883)
+    time.sleep(1)
     mqtt_client.loop_start()
     
     # WEBOTS 

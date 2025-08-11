@@ -54,8 +54,8 @@ def get_blip_data(pose7d):
 
 ##### MQTT ##### 
 
-MQTT_BROKER = 'localhost'
-#MQTT_BROKER = 'mqtt-broker'
+#MQTT_BROKER = 'localhost'
+MQTT_BROKER = 'mqtt-broker'
 MQTT_PORT = 1883
 MQTT_TOPICS = {
     'in': {
@@ -179,5 +179,6 @@ if __name__ == "__main__":
     
     hardware_operator = HWOperator()
     while True:
-        send_manual_cmd(hardware_operator)
+        print(hardware_operator.last_msg)
+        #send_manual_cmd(hardware_operator)
         pass
