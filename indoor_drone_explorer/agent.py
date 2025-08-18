@@ -232,8 +232,12 @@ class Agent:
 if __name__ == "__main__":
     
     agent = Agent()
-    current_pose = input("Input your current pose as a list of 7 float:\n\t")
+    #current_pose = input("Input your current pose as a list of 7 float:\n\t")
     user_prompt = input("Input your command: what room should I find?\n\t ")
 
-    results_state = agent.run(user_prompt, current_pose)
-    print(results_state)
+    while agent.run(user_prompt)['current_workflow'][-1] != 'exploit':
+        results_state = agent.run(user_prompt)
+        print(results_state['current_pose7d'], results_state['current_workflow'], results_state['path_to_target_pose7d'])
+        print()
+    
+    print("Found it!")
