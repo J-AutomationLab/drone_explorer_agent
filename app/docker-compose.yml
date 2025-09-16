@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+
+  broker:
+    image: eclipse-mosquitto:2
+    container_name: mqtt-broker
+    # Expose MQTT port (optional for host access)
+    ports:
+      - "1883:1883"
+    # Mount your broker config
+    volumes:
+      - ./broker_component/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    networks:
+      - mqtt_net
+    restart: unless-stopped
+
+  simulator:
+    build:
+      context: ./simulator_component
+      dockerfile: Dockerfile
+    image: jsusgin/projects:simulator 
+    container_name: simulator-container 
+    environment:
+      - DISPLAY=${DISPLAY}
+      - HOME=/home/hostuser
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./simulator_component/config:/home/hostuser/.config/Webots
+      - ./simulator_component/controllers:/home/hostuser/workspace/controllers
+      - ./simulator_component/protos:/home/hostuser/workspace/protos
+      - ./simulator_component/worlds:/home/hostuser/workspace/worlds
+    devices:
+      - /dev/dri
+    stdin_open: true
+    tty: true
+    networks:
+      - mqtt_net
+    command: webots /home/hostuser/workspace/worlds/my_complete_apartment.wbt
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: ./agent_component
+      dockerfile: Dockerfile
+    image: jsusgin/projects:agents
+    container_name: agent-container
+    environment:
+      - DISPLAY=${DISPLAY}
+      - HOME=/home/hostuser
+      - NVIDIA_VISIBLE_DEVICES=all
+    volumes:
+      - ./agent_component:/home/hostuser/workspace
+    stdin_open: true
+    tty: true
+    networks:
+      - mqtt_net
+    entrypoint: /bin/bash
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+
+networks:
+  mqtt_net:
+    driver: bridge

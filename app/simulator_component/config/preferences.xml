@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Preferences>
+    <!-- Disable the popup asking to save worlds when exiting -->
+    <SavePromptOnExit>false</SavePromptOnExit>
+
+    <!-- Disable the popup notifying a new Webots version is available -->
+    <CheckForNewVersion>false</CheckForNewVersion>
+
+    <!-- Optional: disable automatic backup of worlds -->
+    <BackupOnSave>false</BackupOnSave>
+
+    <!-- Optional: other safe defaults for headless or GUI use -->
+    <ShowSplashScreen>false</ShowSplashScreen>
+    <RecentWorldsMaxCount>0</RecentWorldsMaxCount>
+</Preferences>
