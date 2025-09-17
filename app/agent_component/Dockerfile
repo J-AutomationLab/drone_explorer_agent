@@ -7,6 +7,7 @@ WORKDIR /home/hostuser/workspace/src
 RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
+    tree \
     libsm6 \
     libxext6 \
     libxrender-dev \
@@ -24,7 +25,8 @@ RUN pip install --no-cache-dir \
     networkx \
     langgraph \ 
     langchain \
-    smolagents 
+    smolagents \
+    pytest
 
 # Optional: bash as default entrypoint
 ENTRYPOINT ["/bin/bash"]

@@ -1,4 +1,5 @@
 import networkx as nx 
+import numpy as np
 
 # load points from the truth database 
 points = {
@@ -15,8 +16,8 @@ points = {
     11: [-4.00606, -3.95156, 1.23476, -0.7731190327454575, 0.44972501904810364, 0.4472520189433597, -1.8230853071795865],
 }
 
-def get_index_from_points(point):
-    return list(points.values()).index(point) +1
+def get_index_from_points(point, points_dict=points):
+    return list(points_dict.values()).index(point) +1
 
 edges = [
     (1,2),
@@ -42,32 +43,51 @@ edges = [
 
 class SpatialAPI:
     def __init__(self, points=points, edges=edges):
+        
+        def check_integrity(name, container, expected_type, expected_width):
+            if len(container) <= 0: raise IndexError(f"{name} should contain at least one element.")
+            if not isinstance(container, expected_type): raise TypeError(f"{name} should be of type {expected_type} instead of {type(container)}.")
+            width = -1
+            try:
+                if isinstance(container, [set, list, tuple]):
+                    width = np.array(container).shape[-1]
+                elif isinstance(container, dict):
+                    elts = list(container.values())
+                    width = np.array(elts).shape[-1]
+            except ValueError as e:
+                raise ValueError(f"{name} should contain elements with the same type and shape.")
+            if width != expected_width: raise ValueError(f"{name} should contains elements of width {expected_width}")
+
+        check_integrity("points", points, dict, 6)
+        check_integrity("edges", edges, list, 2)
+        if set(points.keys()).difference(set(np.array(edges).flatten())) != set():
+            raise ValueError(f"The points indexes and the edges are not strictly identical")
+
         self._graph = nx.Graph()
         self._points = points 
         self._edges = edges 
         self._graph.add_nodes_from(points)
         self._graph.add_edges_from(edges)
 
+    def existing_point(self, point):
+        return point in self._points.values()
+
     def get_pose_point(self, pose_idx):
         return self._points.get(pose_idx)
     
-    def keys_to_point_list(self, keys_list):
-        return [self.get_pose_point(k) for k in keys_list]
-    
     def get_pose_key(self, pose_value):
-        return get_index_from_points(pose_value)
-    
-    def points_to_key_list(self, points_list):
-        return [self.get_pose_key(p) for p in points_list]
-    
-    def get_neighbors(self, pose_point):
-        pose_idx = self.get_pose_key([pose_point])
-        return list(self._graph.adj[pose_idx])
+        return get_index_from_points(pose_value, self._points)
     
     def get_closest_points(self, source_point, excluded_points=[]):
+        assert self.existing_point(source_point)
+        assert all([self.existing_point(pt) for pt in excluded_points])
+
+        # add source_point for safety
+        excluded_points.append(source_point)
+
         # go to the index space for simpler computation
         set_all_points = set(self._points.keys())
-        set_excluded_points = set(self.points_to_key_list(excluded_points))
+        set_excluded_points = set([self.get_pose_key(p) for p in excluded_points])
         source_key = self.get_pose_key(source_point)
         
         # exclude the points from the total
@@ -76,12 +96,11 @@ class SpatialAPI:
         # compute the shortest path for each candidate
         paths_idx = [self.get_shortest_path(source_key, candidate_pt, output_as_points=False) for candidate_pt in set_candidates_points]
 
-        # get the minimal path
-        shortest_path = min(len(p) for p in paths_idx)
-        shortest_paths_idx = [p for p in paths_idx if len(p) == shortest_path]
-        shortest_paths_points = [self.keys_to_point_list(i) for i in shortest_paths_idx]
+        # get the closests points
+        closests_idx = [p.pop() for p in paths_idx if len(p) == 1]
+        closests_pts = [self.get_pose_point(i) for i in closests_idx]
 
-        return shortest_paths_points # shape: len(shortest_path_points), shortest_path, len(current_pose)
+        return closests_pts # shape: len(shortest_path_points), shortest_path, len(current_pose)
 
     def get_shortest_path(self, source, target, exclude_source_point=True, inputs_as_points=False, output_as_points=True):
         source_key = source if not inputs_as_points else self.get_pose_key(source)
@@ -97,6 +116,8 @@ class SpatialAPI:
         return [point for point in request_list_points if point in self._points.values()]
     
     def get_percentage_of_exploration(self, explored_points):
+        assert all([self.existing_point(pt) for pt in explored_points])
+        
         existing_explored_points = self.filter_existing_points(explored_points)
         return len(existing_explored_points) / len(self._points)
 
