@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mqtt:
+        image: eclipse-mosquitto:2
+        ports:
+          - 1883:1883
+        options: >-
+          --health-cmd "mosquitto_sub -h localhost -t 'test/topic' -C 1 || exit 1"
+          --health-interval 5s
+          --health-timeout 2s
+          --health-retries 5
+
+    env:
+      DISPLAY: :99
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Start X virtual framebuffer (for Webots)
+      - name: Start Xvfb
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          Xvfb :99 -screen 0 1024x768x16 &
+
+      # Superficial MQTT publish/subscribe test
+      - name: MQTT Sanity Check
+        run: |
+          # Try subscribing (non-blocking)
+          mosquitto_sub -h localhost -t "test/topic" -C 1 -W 1 || true
+          # Try publishing a message
+          mosquitto_pub -h localhost -t "test/topic" -m "ping"
+          echo "MQTT basic subscribe/publish done"
+
+      # Build and test agent_component
+      - name: Build Agent Docker
+        run: docker build -t agent-component ./agent_component
+
+      - name: Run Agent Unit Tests
+        run: |
+          docker run --rm agent-component pytest /home/hostuser/workspace/tests
+
+      # Build and test simulator_component
+      - name: Build Simulator Docker
+        run: docker build -t simulator-component ./simulator_component
+
+      - name: Run Simulator Unit Tests
+        run: |
+          docker run --rm simulator-component pytest /home/hostuser/workspace/tests
+
+      # Optional: integration test
+      - name: Run Integration Test
+        run: |
+          docker-compose -f docker-compose.yml up --build --abort-on-container-exit

@@ -1,4 +1,4 @@
-version: '3.8'
+#version: '3.8'
 
 services:
 
@@ -26,10 +26,8 @@ services:
       - HOME=/home/hostuser
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./simulator_component:/home/hostuser/workspace/simulator_component
       - ./simulator_component/config:/home/hostuser/.config/Webots
-      - ./simulator_component/controllers:/home/hostuser/workspace/controllers
-      - ./simulator_component/protos:/home/hostuser/workspace/protos
-      - ./simulator_component/worlds:/home/hostuser/workspace/worlds
     devices:
       - /dev/dri
     stdin_open: true
@@ -50,7 +48,7 @@ services:
       - HOME=/home/hostuser
       - NVIDIA_VISIBLE_DEVICES=all
     volumes:
-      - ./agent_component:/home/hostuser/workspace
+      - ./agent_component:/home/hostuser/workspace/agent_component
     stdin_open: true
     tty: true
     networks:

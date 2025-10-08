@@ -1,8 +1,5 @@
 FROM cyberbotics/webots:latest
 
-# Set working directory
-WORKDIR /home/hostuser/workspace/worlds
-
 # Install system dependencies for OpenCV, PIL, etc.
 RUN apt-get update && apt-get install -y \
     python3-pip \
@@ -18,7 +15,10 @@ RUN pip install --no-cache-dir \
     numpy \
     opencv-python \
     paho-mqtt \
-    pillow 
+    pillow \
+    pytest
 
-# Optional: bash as default entrypoint
-# CMD ["webots"]
+# Set working directory
+WORKDIR /home/hostuser/workspace/simulator_component
+
+CMD ["/bin/bash"]
