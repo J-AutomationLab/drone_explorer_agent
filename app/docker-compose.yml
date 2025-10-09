@@ -47,8 +47,10 @@ services:
       - DISPLAY=${DISPLAY}
       - HOME=/home/hostuser
       - NVIDIA_VISIBLE_DEVICES=all
+      - PYTHONPATH=/home/hostuser/workspace/agent_component
     volumes:
       - ./agent_component:/home/hostuser/workspace/agent_component
+      - ../database/backups:/home/hostuser/workspace/database/backup
     stdin_open: true
     tty: true
     networks:

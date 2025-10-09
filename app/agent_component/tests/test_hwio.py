@@ -2,7 +2,9 @@ import pytest
 import json
 import numpy as np
 from unittest.mock import patch, MagicMock
-from src.hardware_operator import HWOperator, load_data, DATABASE_JSON_PATH
+from src.hardware_operator import HWOperator, load_data
+
+MOCK_DATABASE_BLIP2_PATH = "/home/hostuser/workspace/database/backup/json_data_blip2"
 
 ##### Fixtures #####
 
@@ -13,23 +15,15 @@ def hw_operator():
         hw = HWOperator()
         yield hw
 
-@pytest.fixture
-def sample_json(tmp_path):
-    db_path = tmp_path / "json_data"
-    db_path.mkdir()
-    data = {"pose7d": [0,0,0,0,0,0,1], "local_image_path": "img.jpg", "blip": ["desc"]}
-    json_file = db_path / "data.json"
-    with open(json_file, "w") as f:
-        json.dump(data, f)
-    yield db_path
-
 ##### Positive tests #####
 
-def test_load_data_positive(sample_json):
-    data = load_data(sample_json, ['blip'])
+def test_load_data_positive():
+    data = load_data(json_data_dir=MOCK_DATABASE_BLIP2_PATH, keys_to_check=['blip'])
     key = list(data.keys())[0]
     assert data[key]['pose7d'] == [0,0,0,0,0,0,1]
     assert data[key]['blip'] == ["desc"]
+    assert isinstance(data[key]['pose7d'], list)
+    assert isinstance(data[key]['blip'], list)
 
 def test_hw_operator_initialization(hw_operator):
     assert hasattr(hw_operator, "last_msg")
@@ -45,14 +39,14 @@ def test_send_cmd_calls_publish(hw_operator):
 
 ##### Negative tests #####
 
-def test_last_msg_is_ok_no_pose(sample_json):
+def test_last_msg_is_ok_no_pose():
     from src.hardware_operator import last_msg_is_ok
     last_msg = {'pose7d': None, 'image': np.zeros((10,10,3))}
     assert last_msg_is_ok(last_msg) is False
 
-def test_last_msg_is_ok_pose_known(sample_json):
-    from src.hardware_operator import last_msg_is_ok, pose_is_similar
-    data = load_data(sample_json, ['blip'])
-    pose = list(data.values())[0]['pose7d']
-    last_msg = {'pose7d': pose, 'image': np.zeros((10,10,3))}
+def test_last_msg_is_ok_pose_known():
+    from src.hardware_operator import last_msg_is_ok
+    # mock a known pose
+    known_pose = [0, 0, 0, 0, 0, 0, 1]
+    last_msg = {'pose7d': known_pose, 'image': np.zeros((10, 10, 3))}
     assert last_msg_is_ok(last_msg) is False

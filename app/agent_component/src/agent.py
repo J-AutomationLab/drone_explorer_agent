@@ -10,7 +10,7 @@ from PIL import Image
 from sentence_transformers import SentenceTransformer, util
 from transformers import CLIPProcessor, CLIPModel
 
-from hardware_operator import HWOperator, load_data, DATABASE_JSON_PATH
+from app.agent_component.src.hardware_operator import HWOperator, load_data, DATABASE_JSON_PATH
 from app.agent_component.src.spatial_api import SpatialAPI
 
 ##### models #####
