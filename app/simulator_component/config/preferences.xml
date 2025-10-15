@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Preferences>
+    <!-- Disable the welcome screen and accept the license -->
+    <WelcomeScreenShown>true</WelcomeScreenShown>
+    <LicenseAccepted>true</LicenseAccepted>
+
     <!-- Disable the popup asking to save worlds when exiting -->
     <SavePromptOnExit>false</SavePromptOnExit>
 
@@ -12,4 +16,7 @@
     <!-- Optional: other safe defaults for headless or GUI use -->
     <ShowSplashScreen>false</ShowSplashScreen>
     <RecentWorldsMaxCount>0</RecentWorldsMaxCount>
+
+    <!-- Set the theme to Dark mode -->
+    <Theme>Dark</Theme>
 </Preferences>

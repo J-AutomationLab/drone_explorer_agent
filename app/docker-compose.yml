@@ -7,7 +7,7 @@ services:
     container_name: mqtt-broker
     # Expose MQTT port (optional for host access)
     ports:
-      - "1883:1883"
+      - "1884:1883"
     # Mount your broker config
     volumes:
       - ./broker_component/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
@@ -15,27 +15,52 @@ services:
       - mqtt_net
     restart: unless-stopped
 
-  simulator:
+  # Default simulator (headless)services:
+  simulator-headless:
     build:
       context: ./simulator_component
       dockerfile: Dockerfile
-    image: jsusgin/projects:simulator 
-    container_name: simulator-container 
+    image: jsusgin/projects:simulator
+    container_name: simulator-headless
+    profiles: ["headless"]
     environment:
-      - DISPLAY=${DISPLAY}
       - HOME=/home/hostuser
+      - WEBOTS_MODE=headless
+      - DISPLAY=:99
+      - WEBOTS_HEADLESS=1
+      - QT_X11_NO_MITSHM=1
+    volumes:
+      - ./simulator_component:/home/hostuser/workspace/simulator_component
+      - ./simulator_component/config/preferences.xml:/home/hostuser/.config/Webots/preferences.xml
+    networks:
+      - mqtt_net
+    devices:
+      - /dev/dri
+    restart: on-failure
+    stdin_open: true
+    tty: true
+
+  simulator-gui:
+    image: jsusgin/projects:simulator
+    container_name: simulator-gui
+    profiles: ["gui"]
+    environment:
+      - HOME=/home/hostuser
+      - WEBOTS_MODE=gui
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ./simulator_component:/home/hostuser/workspace/simulator_component
-      - ./simulator_component/config:/home/hostuser/.config/Webots
+      - ./simulator_component/config/preferences.xml:/home/hostuser/.config/Webots/preferences.xml
     devices:
       - /dev/dri
-    stdin_open: true
-    tty: true
     networks:
       - mqtt_net
-    command: webots /home/hostuser/workspace/worlds/my_complete_apartment.wbt
-    restart: unless-stopped
+    restart: on-failure
+    stdin_open: true
+    tty: true
+
 
   agent:
     build:

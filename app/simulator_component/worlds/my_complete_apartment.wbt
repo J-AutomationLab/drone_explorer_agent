@@ -1,4 +1,8 @@
 #VRML_SIM R2022a utf8
+
+EXTERNPROTO "../protos/FlyingCamera.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/backgrounds/protos/TexturedBackground.proto"
+
 WorldInfo {
   info [
     "Sample of how the indoor objects can be placed"
