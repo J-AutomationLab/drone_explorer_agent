@@ -1,0 +1,17 @@
+{
+    "pose7d": [
+        -2.1,
+        -7.45619,
+        1.24828,
+        0.0006112608201322481,
+        0.7082067916052212,
+        0.7060047922531747,
+        3.13841
+    ],
+    "local_image_path": "/home/hostuser/workspace/colcon_ws/src/Indoor_drone_explorer/database/images/camera_img_250722122850.jpg",
+    "colab_image_path": "/content/drive/MyDrive/Colab Notebooks/data/images/camera_img_250722122850.jpg",
+    "blip": [
+        "a 3d rendering of a bedroom with a bed and lamp",
+        "Question: I'm in a house. In what place am I? Answer: In the bedroom."
+    ]
+}

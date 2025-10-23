@@ -37,12 +37,12 @@ def load_data(json_data_dir=DATABASE_JSON_PATH, keys_to_check=[]):
         registered_data[json_path] = json_data.copy()
     return registered_data
 
-blip_data = load_data(DATABASE_BLIP2_PATH, ['blip'])
+# blip_data = load_data(DATABASE_BLIP2_PATH, ['blip'])
 
 def pose_is_similar(pose1, pose2, tol=1e-4):
     return sum(np.abs(np.array(pose1) - np.array(pose2))) < tol 
 
-def get_blip_data(pose7d):
+def get_blip_data(blip_data, pose7d):
     #print(pose7d)
     #for v in blip_data.values():
         #print(v['pose7d'])
@@ -97,11 +97,12 @@ def get_timestamp(t=None):
 class HWOperator:
     TIME_CONTRAINT = TIME_CONTRAINT
 
-    def __init__(self):
+    def __init__(self, blip_data_path=DATABASE_BLIP2_PATH):
         self._mqtt_client = mqtt.Client()
         self._mqtt_client.on_connect = self._on_connect
         self._mqtt_client.on_message = self._on_message
         self.last_msg = reset_last_msg()
+        self._blip_data_path = blip_data_path
 
         self._t = threading.Thread(target=self._listen, daemon=True).start()
     
@@ -134,8 +135,9 @@ class HWOperator:
             image_path = os.path.join(DATABASE_IMAGE_PATH, f'camera_img_{timestamp}.jpg')
             data_path = os.path.join(DATABASE_JSON_PATH, f'data_img_{timestamp}.json')
             try:
+                blip_data = load_data(self._blip_data_path, ['blip'])
                 pose7d = self.last_msg['pose7d']
-                blip = get_blip_data(pose7d)
+                blip = get_blip_data(blip_data, pose7d)
                 json_data = {
                     'pose7d': pose7d,
                     'local_image_path': image_path,

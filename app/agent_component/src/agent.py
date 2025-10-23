@@ -10,8 +10,8 @@ from PIL import Image
 from sentence_transformers import SentenceTransformer, util
 from transformers import CLIPProcessor, CLIPModel
 
-from app.agent_component.src.hardware_operator import HWOperator, load_data, DATABASE_JSON_PATH
-from app.agent_component.src.spatial_api import SpatialAPI
+from src.hardware_operator import HWOperator, load_data, DATABASE_JSON_PATH
+from src.spatial_api import SpatialAPI
 
 ##### models #####
 
@@ -86,7 +86,7 @@ class Agent:
     N_BEST_SIMILARITY_MATCHES = 5
 
     def __init__(self):
-        self._hardware_operator = HWOperator()
+        self._hardware_operator = HWOperator() # insert blip data path here
         self._spatial_api = SpatialAPI()
         self._agent = self._build()
         self._memory = None 

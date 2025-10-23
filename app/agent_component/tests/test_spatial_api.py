@@ -69,8 +69,13 @@ def test_init_invalid_points_edges():
     with pytest.raises(IndexError):
         spatial_api.SpatialAPI(points.copy(), [])
 
+    # negative value in edge
+    broken_edges = edges + [(1, -1)]
+    with pytest.raises(IndexError):
+        spatial_api.SpatialAPI(points.copy(), [])
+
     # point in edge not in points
-    broken_edges = edges + [(5,6)]
+    broken_edges = edges + [(5, 99)] # 99 missing
     with pytest.raises(ValueError):
         spatial_api.SpatialAPI(points.copy(), broken_edges)
 

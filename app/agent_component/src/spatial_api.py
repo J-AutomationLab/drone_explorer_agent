@@ -49,7 +49,7 @@ class SpatialAPI:
             if not isinstance(container, expected_type): raise TypeError(f"{name} should be of type {expected_type} instead of {type(container)}.")
             width = -1
             try:
-                if isinstance(container, [set, list, tuple]):
+                if isinstance(container, (set, list, tuple)):
                     width = np.array(container).shape[-1]
                 elif isinstance(container, dict):
                     elts = list(container.values())
@@ -60,8 +60,16 @@ class SpatialAPI:
 
         check_integrity("points", points, dict, 6)
         check_integrity("edges", edges, list, 2)
-        if set(points.keys()).difference(set(np.array(edges).flatten())) != set():
-            raise ValueError(f"The points indexes and the edges are not strictly identical")
+        
+        points_set = set(points.keys())
+        edges_set = set(np.array(edges).flatten())
+        if points_set != edges_set:
+            missing = []
+            if points_set.difference(edges_set) != set():
+                missing = [*missing, *list(points_set.difference(edges_set))]
+            if edges_set.difference(points_set) != set():
+                missing = [*missing, *list(edges_set.difference(points_set))]
+            raise ValueError(f"The points {missing} are missing in either the points or the edges.")
 
         self._graph = nx.Graph()
         self._points = points 

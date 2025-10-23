@@ -29,10 +29,15 @@ RUN pip install --no-cache-dir \
     sentence-transformers \
     langgraph 
 
+
 # Set working directory
 WORKDIR /home/hostuser/workspace/agent_component
+
+# Save app 
+COPY src ./src 
+COPY tests ./tests 
 
 # Optional: bash as default entrypoint
 CMD ["/bin/bash"]
 
-# run tests with: docker compose run --rm --entrypoint pytest agent -v /home/hostuser/workspace/agent_component/tests 
+# run tests with: docker compose run --rm --entrypoint pytest agent -v tests 
