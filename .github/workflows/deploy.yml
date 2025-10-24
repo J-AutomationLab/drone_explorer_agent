@@ -1,0 +1,18 @@
+- name: Azure Login
+  uses: azure/login@v1
+  with:
+    creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+- name: Set subscription (optional if only one)
+  run: az account set --subscription ${{ fromJson(secrets.AZURE_CREDENTIALS).subscriptionId }}
+
+# Skip az group create
+
+- name: Deploy app (inside existing RG)
+  run: |
+    az webapp create \
+      --resource-group drone-explorer-rg \
+      --plan drone-explorer-plan \
+      --name drone-explorer-webapp \
+      --multicontainer-config-type compose \
+      --multicontainer-config-file docker-compose.yml

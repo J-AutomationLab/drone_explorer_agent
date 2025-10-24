@@ -51,16 +51,14 @@ jobs:
         run: docker build -t agent-component ./agent_component
 
       - name: Run Agent Unit Tests
-        run: |
-          docker run --rm agent-component pytest /home/hostuser/workspace/tests
+        run: docker run --rm agent-component pytest /home/hostuser/workspace/tests
 
       # Build and test simulator_component
       - name: Build Simulator Docker
         run: docker build -t simulator-component ./simulator_component
 
       - name: Run Simulator Unit Tests
-        run: |
-          docker run --rm simulator-component pytest /home/hostuser/workspace/tests
+        run: docker run --rm simulator-component pytest /home/hostuser/workspace/tests
 
       # Optional: integration test
       - name: Run Integration Test

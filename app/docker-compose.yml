@@ -7,7 +7,7 @@ services:
     container_name: mqtt-broker
     # Expose MQTT port (optional for host access)
     ports:
-      - "1884:1883"
+      - "1883:1883"
     # Mount your broker config
     volumes:
       - ./broker_component/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
