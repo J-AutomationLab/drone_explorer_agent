@@ -8,8 +8,11 @@ on:
 
 jobs:
   deploy:
+    # Only run if the CI workflow succeeded
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    env:
+      DRY_RUN: true  # <-- Set to "false" to actually deploy
 
     steps:
       - name: Checkout
@@ -22,9 +25,13 @@ jobs:
 
       - name: Deploy Docker Compose App
         run: |
-          az webapp create \
-            --resource-group drone-explorer-rg \
-            --plan drone-explorer-plan \
-            --name drone-explorer-webapp \
-            --multicontainer-config-type compose \
-            --multicontainer-config-file docker-compose.yml
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "[DRY RUN] Deployment skipped."
+            echo "Would run: az webapp create --resource-group drone-explorer-rg --plan drone-explorer-plan --name drone-explorer-webapp --multicontainer-config-type compose --multicontainer-config-file docker-compose.yml"
+          else
+            az webapp create \
+              --resource-group drone-explorer-rg \
+              --plan drone-explorer-plan \
+              --name drone-explorer-webapp \
+              --multicontainer-config-type compose \
+              --multicontainer-config-file docker-compose.yml
