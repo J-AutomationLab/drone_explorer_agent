@@ -10,7 +10,7 @@ services:
       - "1883:1883"
     # Mount your broker config
     volumes:
-      - ./broker_component/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./broker_component/config:/mosquitto/config:ro
     networks:
       - mqtt_net
     restart: unless-stopped
