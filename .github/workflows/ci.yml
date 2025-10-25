@@ -28,7 +28,7 @@ jobs:
 
       # 4️⃣ Build and start MQTT broker
       - name: Build MQTT Broker
-        run: docker build -t mqtt-broker ./broker_component
+        run: docker build -t mqtt-broker ./app/broker_component
 
       - name: Start MQTT Broker
         run: |
@@ -47,7 +47,7 @@ jobs:
 
       # 6️⃣ Build Agent Docker
       - name: Build Agent Docker
-        run: docker build -t agent-component ./agent_component
+        run: docker build -t agent-component ./app/agent_component
 
       # 7️⃣ Run Agent Unit Tests
       - name: Run Agent Unit Tests
@@ -55,7 +55,7 @@ jobs:
 
       # 8️⃣ Build Simulator Docker
       - name: Build Simulator Docker
-        run: docker build -t simulator-component ./simulator_component
+        run: docker build -t simulator-component ./app/simulator_component
 
       # 9️⃣ Run Simulator Unit Tests
       - name: Run Simulator Unit Tests
