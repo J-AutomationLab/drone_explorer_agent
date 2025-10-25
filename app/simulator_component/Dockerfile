@@ -44,6 +44,11 @@ else \
     webots --batch --minimize --stdout --stderr --mode=realtime ./worlds/my_complete_apartment.wbt; \
 fi"]
 
+COPY controllers ./controllers
+COPY protos ./protos
+COPY worlds ./worlds
+COPY tests ./tests
+COPY config/preferences.xml /home/hostuser/workspace/.config/Webots/preferences.xml
 
 # WEBOTS_MODE=gui docker compose up / WEBOTS_MODE=headless docker compose up [default]
 

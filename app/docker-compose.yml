@@ -3,14 +3,10 @@
 services:
 
   broker:
-    image: eclipse-mosquitto:2
-    container_name: mqtt-broker
-    # Expose MQTT port (optional for host access)
+    build:
+      context: ./broker_component
     ports:
       - "1883:1883"
-    # Mount your broker config
-    volumes:
-      - ${{ github.workspace }}/broker_component/config:/mosquitto/config:ro
     networks:
       - mqtt_net
     restart: unless-stopped
@@ -29,9 +25,9 @@ services:
       - DISPLAY=:99
       - WEBOTS_HEADLESS=1
       - QT_X11_NO_MITSHM=1
-    volumes:
-      - ./simulator_component:/home/hostuser/workspace/simulator_component
-      - ./simulator_component/config/preferences.xml:/home/hostuser/.config/Webots/preferences.xml
+    #volumes:
+      #- ./simulator_component:/home/hostuser/workspace/simulator_component
+      #- ./simulator_component/config/preferences.xml:/home/hostuser/.config/Webots/preferences.xml
     networks:
       - mqtt_net
     devices:
@@ -51,8 +47,8 @@ services:
       - QT_X11_NO_MITSHM=1
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ./simulator_component:/home/hostuser/workspace/simulator_component
-      - ./simulator_component/config/preferences.xml:/home/hostuser/.config/Webots/preferences.xml
+      #- ./simulator_component:/home/hostuser/workspace/simulator_component
+      #- ./simulator_component/config/preferences.xml:/home/hostuser/.config/Webots/preferences.xml
     devices:
       - /dev/dri
     networks:
@@ -74,7 +70,7 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - PYTHONPATH=/home/hostuser/workspace/agent_component
     volumes:
-      - ./agent_component:/home/hostuser/workspace/agent_component
+      #- ./agent_component:/home/hostuser/workspace/agent_component
       - ../database/backups:/home/hostuser/workspace/database/backup
     stdin_open: true
     tty: true
