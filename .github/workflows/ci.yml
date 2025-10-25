@@ -23,7 +23,7 @@ jobs:
       - name: Start Xvfb
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb
+          sudo apt-get install -y xvfb mosquitto-clients
           Xvfb :99 -screen 0 1024x768x16 &
 
       # 4️⃣ Build and start MQTT broker
@@ -33,20 +33,14 @@ jobs:
       - name: Start MQTT Broker
         run: |
           docker run -d --name mqtt-broker -p 1883:1883 mqtt-broker
-          echo "Waiting for broker to be ready..."
-          for i in {1..10}; do
-            mosquitto_sub -h localhost -t test/topic -C 1 -W 5 && break || sleep 2
-          done
+          echo "Waiting 5 seconds for broker to start..."
+          sleep 5
 
-      # 5️⃣ Install Mosquitto clients
-      - name: Install Mosquitto clients
-        run: sudo apt-get update && sudo apt-get install -y mosquitto-clients
-
-      # 5️⃣ Quick MQTT sanity check
+      # 5️⃣ MQTT sanity check using docker exec
       - name: MQTT Sanity Check
         run: |
-          mosquitto_pub -h localhost -t "test/topic" -m "ping"
-          mosquitto_sub -h localhost -t "test/topic" -C 1 -W 5
+          docker exec mqtt-broker mosquitto_pub -h localhost -t "test/topic" -m "ping"
+          docker exec mqtt-broker mosquitto_sub -h localhost -t "test/topic" -C 1 -W 5
           echo "MQTT broker is working"
 
       # 6️⃣ Build Agent Docker
@@ -65,6 +59,8 @@ jobs:
       - name: Run Simulator Unit Tests
         run: docker run --rm simulator-component pytest /home/hostuser/workspace/tests
 
-      # 🔚 Optional: stop MQTT broker
+      # 🔚 Optional: stop and remove MQTT broker
       - name: Stop MQTT Broker
-        run: docker stop mqtt-broker && docker rm mqtt-broker
+        run: |
+          docker stop mqtt-broker
+          docker rm mqtt-broker
