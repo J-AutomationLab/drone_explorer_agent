@@ -12,7 +12,7 @@ jobs:
         image: eclipse-mosquitto:2
         ports:
           - 1883:1883
-        volumes:volumes:
+        volumes:
           - ${{ github.workspace }}/broker_component/config:/mosquitto/config:ro
         options: >-
           --health-cmd "mosquitto_sub -h localhost -t 'test/topic' -C 1 || exit 1"
