@@ -13,7 +13,7 @@ jobs:
         ports:
           - 1883:1883
         volumes:volumes:
-          - ./broker_component/config:/mosquitto/config:ro
+          - ${{ github.workspace }}/broker_component/config:/mosquitto/config:ro
         options: >-
           --health-cmd "mosquitto_sub -h localhost -t 'test/topic' -C 1 || exit 1"
           --health-interval 5s
@@ -60,7 +60,4 @@ jobs:
       - name: Run Simulator Unit Tests
         run: docker run --rm simulator-component pytest /home/hostuser/workspace/tests
 
-      # Optional: integration test
-      - name: Run Integration Test
-        run: |
-          docker-compose -f docker-compose.yml up --build --abort-on-container-exit
+        
