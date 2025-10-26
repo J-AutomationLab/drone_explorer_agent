@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -18,18 +18,16 @@ RUN apt-get update && apt-get install -y \
 RUN ln -sf /usr/bin/python3 /usr/bin/python && ln -sf /usr/bin/pip3 /usr/bin/pip
 
 # Install PyTorch (with CUDA) and all other Python deps
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --prefer-binary \
     numpy \
     pytest \
     paho-mqtt \
+    opencv-python-headless \
     pillow \
     networkx \
     transformers \
     sentence-transformers \
     langgraph 
-
-RUN pip install --no-cache-dir opencv-python-headless 
-
 
 # Set working directory
 WORKDIR /home/hostuser/workspace/agent_component
