@@ -17,9 +17,8 @@ RUN apt-get update && apt-get install -y \
 RUN ln -sf /usr/bin/python3 /usr/bin/python && ln -sf /usr/bin/pip3 /usr/bin/pip
 
 # Install PyTorch (with CUDA) and all other Python deps
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --prefer-binary \
     numpy \
-    torch \
     pytest \
     paho-mqtt \
     pillow \
