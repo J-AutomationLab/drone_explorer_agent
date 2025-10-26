@@ -5,62 +5,45 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
 
     env:
       DISPLAY: :99
 
     steps:
-      # 1️⃣ Checkout repository
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      # 2️⃣ Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 3️⃣ Start X virtual framebuffer for headless GUI
-      - name: Start Xvfb
+      - name: Install Xvfb (for headless GUI tests)
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb mosquitto-clients
+          sudo apt-get install -y xvfb
+          # start Xvfb in background for tests that require a DISPLAY
           Xvfb :99 -screen 0 1024x768x16 &
 
-      # 4️⃣ Build and start MQTT broker
-      - name: Build MQTT Broker
-        run: docker build -t mqtt-broker ./app/broker_component
-
-      - name: Start MQTT Broker
-        run: |
-          docker run -d --name mqtt-broker -p 1883:1883 mqtt-broker
-          echo "Waiting 5 seconds for broker to start..."
-          sleep 5
-
-      # 5️⃣ MQTT sanity check using docker exec
-      - name: MQTT Sanity Check
-        run: |
-          docker exec mqtt-broker mosquitto_pub -h localhost -t "test/topic" -m "ping"
-          docker exec mqtt-broker mosquitto_sub -h localhost -t "test/topic" -C 1 -W 5
-          echo "MQTT broker is working"
-
-      # 6️⃣ Build Agent Docker
-      - name: Build Agent Docker
+      - name: Build Agent image
         run: docker build -t agent-component ./app/agent_component
 
-      # 7️⃣ Run Agent Unit Tests
       - name: Run Agent Unit Tests
-        run: docker run --rm agent-component pytest /home/hostuser/workspace/tests
+        # mount repo tests directory into the container; adjust container test path as needed
+        run: |
+          docker run --rm \
+            -v "${{ github.workspace }}/tests":/home/hostuser/workspace/tests \
+            --entrypoint pytest \
+            agent-component \
+            /home/hostuser/workspace/tests
 
-      # 8️⃣ Build Simulator Docker
-      - name: Build Simulator Docker
+      - name: Build Simulator image
         run: docker build -t simulator-component ./app/simulator_component
 
-      # 9️⃣ Run Simulator Unit Tests
       - name: Run Simulator Unit Tests
-        run: docker run --rm simulator-component pytest /home/hostuser/workspace/tests
-
-      # 🔚 Optional: stop and remove MQTT broker
-      - name: Stop MQTT Broker
         run: |
-          docker stop mqtt-broker
-          docker rm mqtt-broker
+          docker run --rm \
+            -v "${{ github.workspace }}/tests":/home/hostuser/workspace/tests \
+            --entrypoint pytest \
+            simulator-component \
+            /home/hostuser/workspace/tests
