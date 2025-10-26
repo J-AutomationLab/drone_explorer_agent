@@ -35,8 +35,9 @@ jobs:
           context: ./app/agent_component
           tags: agent-component:latest
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=agent
+          cache-to: type=gha,mode=max,scope=agent
+          platforms: linux/amd64
 
       # 5️⃣ Build Simulator image with cache
       - name: Build Simulator image (cached)
@@ -45,8 +46,9 @@ jobs:
           context: ./app/simulator_component
           tags: simulator-component:latest
           push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=simulator
+          cache-to: type=gha,mode=max,scope=simulator
+          platforms: linux/amd64
 
       # 6️⃣ Run Agent Unit Tests via Docker Compose
       - name: Run Agent Unit Tests
