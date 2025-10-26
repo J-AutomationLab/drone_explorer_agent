@@ -33,17 +33,17 @@ jobs:
 
       # 4️⃣ Pull prebuilt images
       - name: Pull Agent image
-        run: docker pull ghcr.io/j-automationlab/agent-component:latest
+        run: docker pull ghcr.io/j-automationlab/agent:latest
 
       - name: Pull Simulator image
-        run: docker pull ghcr.io/j-automationlab/simulator-component:latest
+        run: docker pull ghcr.io/j-automationlab/simulator:latest
 
       # 5️⃣ Run Agent Unit Tests
       - name: Run Agent Unit Tests
         run: |
-          docker run --rm -e DISPLAY=:99 ghcr.io/j-automationlab/agent-component:latest pytest -v ./tests
+          docker run --rm -e DISPLAY=${DISPLAY} ghcr.io/j-automationlab/agent:latest pytest -v ./tests
 
       # 6️⃣ Run Simulator Unit Tests
       - name: Run Simulator Unit Tests
         run: |
-          docker run --rm -e DISPLAY=:99 -e PYTHONPATH=/home/hostuser/workspace/simulator_component ghcr.io/j-automationlab/simulator-component:latest pytest -v ./tests
+          docker run --rm -e DISPLAY=${DISPLAY} -e PYTHONPATH=/home/hostuser/workspace/simulator ghcr.io/j-automationlab/simulator-component:latest pytest -v ./tests

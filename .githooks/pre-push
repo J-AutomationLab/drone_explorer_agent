@@ -10,7 +10,7 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
 fi
 
 COMPOSE_FILE="./app/docker-compose.yml"
-GH_USERNAME="j-automationlab"
+GH_USERNAME="J-AutomationLab"
 LOG_DIR=".log/prepush"
 
 # Create log directory
