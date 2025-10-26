@@ -16,45 +16,34 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Set up Docker Buildx (for cache)
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # 3️⃣ Start virtual X server (for headless GUI)
+      # 2️⃣ Start virtual X server (for headless GUI)
       - name: Install Xvfb
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb
           Xvfb :99 -screen 0 1024x768x16 &
 
-      # 4️⃣ Build Agent image with cache
-      - name: Build Agent image (cached)
-        uses: docker/build-push-action@v6
+      # 3️⃣ Log in to GitHub Container Registry
+      - name: Log in to GHCR
+        uses: docker/login-action@v2
         with:
-          context: ./app/agent_component
-          tags: agent-component:latest
-          push: true
-          cache-from: type=gha,scope=agent
-          cache-to: type=gha,mode=max,scope=agent
-          platforms: linux/amd64
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_TOKEN }}
 
-      # 5️⃣ Build Simulator image with cache
-      - name: Build Simulator image (cached)
-        uses: docker/build-push-action@v6
-        with:
-          context: ./app/simulator_component
-          tags: simulator-component:latest
-          push: true
-          cache-from: type=gha,scope=simulator
-          cache-to: type=gha,mode=max,scope=simulator
-          platforms: linux/amd64
+      # 4️⃣ Pull prebuilt images
+      - name: Pull Agent image
+        run: docker pull ghcr.io/<username>/agent-component:latest
 
-      # 6️⃣ Run Agent Unit Tests via Docker Compose
+      - name: Pull Simulator image
+        run: docker pull ghcr.io/<username>/simulator-component:latest
+
+      # 5️⃣ Run Agent Unit Tests
       - name: Run Agent Unit Tests
         run: |
-          docker compose -f ./app/docker-compose.yml run --rm --entrypoint pytest agent -v ./tests
+          docker run --rm -e DISPLAY=:99 ghcr.io/<username>/agent-component:latest pytest -v ./tests
 
-      # 7️⃣ Run Simulator Unit Tests via Docker Compose
+      # 6️⃣ Run Simulator Unit Tests
       - name: Run Simulator Unit Tests
         run: |
-          docker compose -f ./app/docker-compose.yml run --rm --entrypoint pytest simulator-headless -v ./tests
+          docker run --rm -e DISPLAY=:99 -e PYTHONPATH=/home/hostuser/workspace/simulator_component ghcr.io/<username>/simulator-component:latest pytest -v ./tests
