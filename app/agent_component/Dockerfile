@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     bash \
     tree \
     libsm6 \
+    libglib2.0-0 \
     libxext6 \
     libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
@@ -17,16 +18,17 @@ RUN apt-get update && apt-get install -y \
 RUN ln -sf /usr/bin/python3 /usr/bin/python && ln -sf /usr/bin/pip3 /usr/bin/pip
 
 # Install PyTorch (with CUDA) and all other Python deps
-RUN pip install --no-cache-dir --prefer-binary \
+RUN pip install --no-cache-dir \
     numpy \
     pytest \
     paho-mqtt \
     pillow \
-    opencv-python-headless \
     networkx \
     transformers \
     sentence-transformers \
     langgraph 
+
+RUN pip install --no-cache-dir opencv-python-headless 
 
 
 # Set working directory
