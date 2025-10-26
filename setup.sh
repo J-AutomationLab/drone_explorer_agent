@@ -1,3 +1,4 @@
 #!/bin/bash
-git config core.hooksPath .githooks/prepush
-echo "Git prepush hook installed."
+git config core.hooksPath .githooks
+git config --get core.hooksPath
+

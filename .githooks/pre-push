@@ -13,7 +13,14 @@ echo "🟢 Pre-push hook: Build and run unit tests. Images will be pushed if tes
 
 # --- 1️⃣ Build images (agent + simulator) ---
 echo "🔨 Building Docker images..."
-docker compose -f $COMPOSE_FILE build 
+BUILD_LOG="$LOG_DIR/build.log"
+if docker compose -f $COMPOSE_FILE build &> "$BUILD_LOG"; then
+    echo "✅ Docker images built successfully."
+else
+    echo "❌ Docker build failed. Check $BUILD_LOG"
+    cat "$BUILD_LOG"
+    exit 1
+fi
 
 # --- 2️⃣ Ensure GHCR credentials ---
 : "${GH_USERNAME:?Need to set GH_USERNAME}"
