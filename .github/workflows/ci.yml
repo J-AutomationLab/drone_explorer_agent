@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [ main ]
+  pull_request:
 
 jobs:
   unit-tests:
@@ -12,38 +13,49 @@ jobs:
       DISPLAY: :99
 
     steps:
+      # 1️⃣ Checkout repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
+      # 2️⃣ Set up Docker Buildx (for cache)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Install Xvfb (for headless GUI tests)
+      # 3️⃣ Start virtual X server (for headless GUI)
+      - name: Install Xvfb
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb
-          # start Xvfb in background for tests that require a DISPLAY
           Xvfb :99 -screen 0 1024x768x16 &
 
-      - name: Build Agent image
-        run: docker build -t agent-component ./app/agent_component
+      # 4️⃣ Build Agent image with cache
+      - name: Build Agent image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app/agent_component
+          tags: agent-component:latest
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
+      # 5️⃣ Build Simulator image with cache
+      - name: Build Simulator image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app/simulator_component
+          tags: simulator-component:latest
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 6️⃣ Run Agent Unit Tests via Docker Compose
       - name: Run Agent Unit Tests
-        # mount repo tests directory into the container; adjust container test path as needed
         run: |
-          docker run --rm \
-            -v "${{ github.workspace }}/tests":/home/hostuser/workspace/tests \
-            --entrypoint pytest \
-            agent-component \
-            /home/hostuser/workspace/tests
+          echo "🔍 Running Agent tests..."
+          docker compose run --rm --entrypoint pytest agent -v ./tests
 
-      - name: Build Simulator image
-        run: docker build -t simulator-component ./app/simulator_component
-
+      # 7️⃣ Run Simulator Unit Tests via Docker Compose
       - name: Run Simulator Unit Tests
         run: |
-          docker run --rm \
-            -v "${{ github.workspace }}/tests":/home/hostuser/workspace/tests \
-            --entrypoint pytest \
-            simulator-component \
-            /home/hostuser/workspace/tests
+          echo "🎮 Running Simulator tests..."
+          docker compose run --rm --entrypoint pytest simulator-headless -v ./tests
