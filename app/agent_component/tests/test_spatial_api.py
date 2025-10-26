@@ -83,7 +83,3 @@ def test_init_invalid_points_edges():
     broken_edges = edges + [(1,3,5)]
     with pytest.raises(ValueError):
         spatial_api.SpatialAPI(points.copy(), broken_edges)
-
-import torch 
-def test_gpu_available():
-    assert torch.cuda.is_available()
