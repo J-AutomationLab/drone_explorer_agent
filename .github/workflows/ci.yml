@@ -53,11 +53,9 @@ jobs:
       # 6️⃣ Run Agent Unit Tests via Docker Compose
       - name: Run Agent Unit Tests
         run: |
-          echo "🔍 Running Agent tests..."
-          docker compose run --file ./app/docker-compose.yml --rm --entrypoint pytest agent -v ./tests
+          docker compose -f ./app/docker-compose.yml run --rm --entrypoint pytest agent -v ./tests
 
       # 7️⃣ Run Simulator Unit Tests via Docker Compose
       - name: Run Simulator Unit Tests
         run: |
-          echo "🎮 Running Simulator tests..."
-          docker compose run --file ./app/docker-compose.yml --rm --entrypoint pytest simulator-headless -v ./tests
+          docker compose -f ./app/docker-compose.yml run --rm --entrypoint pytest simulator-headless -v ./tests
