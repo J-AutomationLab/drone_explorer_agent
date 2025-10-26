@@ -46,4 +46,4 @@ jobs:
       # 6️⃣ Run Simulator Unit Tests
       - name: Run Simulator Unit Tests
         run: |
-          docker run --rm -e DISPLAY=${DISPLAY} -e PYTHONPATH=/home/hostuser/workspace/simulator ghcr.io/j-automationlab/simulator-component:latest pytest -v ./tests
+          docker run --rm -e DISPLAY=${DISPLAY} ghcr.io/j-automationlab/simulator:latest pytest -v ./tests
