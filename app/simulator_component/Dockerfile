@@ -33,6 +33,7 @@ ENV WEBOTS_HEADLESS=1
 
 # Set working directory
 WORKDIR /home/hostuser/workspace/simulator_component
+ENV PYTHONPATH=.
 
 # Run Webots headless in headless or gui mode
 ENTRYPOINT ["/bin/bash", "-c", "\

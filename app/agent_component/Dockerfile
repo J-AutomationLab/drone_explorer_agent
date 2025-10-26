@@ -31,6 +31,7 @@ RUN pip install --no-cache-dir --prefer-binary \
 
 # Set working directory
 WORKDIR /home/hostuser/workspace/agent_component
+ENV PYTHONPATH=.
 
 # Save app 
 COPY src ./src 
