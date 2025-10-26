@@ -7,7 +7,7 @@ import pytest
 sys.modules['controller'] = MagicMock()
 sys.modules['controller'].Supervisor = MagicMock()
 
-from simulator_component.controllers.simple_controller.simple_controller import RobotController
+from controllers.simple_controller.simple_controller import RobotController
 
 class MockField:
     """Mock for Webots Supervisor fields"""

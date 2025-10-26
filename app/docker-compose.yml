@@ -16,7 +16,7 @@ services:
     build:
       context: ./simulator_component
       dockerfile: Dockerfile
-    image: jsusgin/projects:simulator
+    image: ghcr.io/j-automationlab/simulator:latest
     container_name: simulator-headless
     profiles: ["headless"]
     environment:
@@ -37,7 +37,10 @@ services:
     tty: true
 
   simulator-gui:
-    image: jsusgin/projects:simulator
+    build:
+      context: ./simulator_component
+      dockerfile: Dockerfile
+    image: ghcr.io/j-automationlab/simulator:latest
     container_name: simulator-gui
     profiles: ["gui"]
     environment:
@@ -62,8 +65,8 @@ services:
     build:
       context: ./agent_component
       dockerfile: Dockerfile
-    image: jsusgin/projects:agents
-    container_name: agent-container
+    image: ghcr.io/j-automationlab/agent:latest
+    container_name: agent
     environment:
       - DISPLAY=${DISPLAY}
       - HOME=/home/hostuser

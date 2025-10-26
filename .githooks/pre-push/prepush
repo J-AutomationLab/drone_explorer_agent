@@ -1,0 +1,71 @@
+#!/bin/bash
+# Stops push if Docker images fail unit tests and pushes images if successful
+set -e
+
+COMPOSE_FILE="./app/docker-compose.yml"
+GH_USERNAME="j-automationlab"
+LOG_DIR=".log/prepush"
+
+# Create log directory
+mkdir -p "$LOG_DIR"
+
+echo "🟢 Pre-push hook: Build and run unit tests. Images will be pushed if tests succeed."
+
+# --- 1️⃣ Build images (agent + simulator) ---
+echo "🔨 Building Docker images..."
+docker compose -f $COMPOSE_FILE build 
+
+# --- 2️⃣ Ensure GHCR credentials ---
+: "${GH_USERNAME:?Need to set GH_USERNAME}"
+if [ -z "$GH_TOKEN" ]; then
+    echo "⚠️  GH_TOKEN not found. Please enter your GitHub token or export it to avoid manual input:"
+    read -s GH_TOKEN
+fi
+echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_USERNAME" --password-stdin
+
+# --- 3️⃣ Helper function to run a command, log output, and push image ---
+run_command_and_push() {
+    local cmd=("${!1}")   # command to execute, passed as array
+    local image=$2         # image to push if successful
+    local log_file=$3      # log file path
+
+    echo "▶️  Running: ${cmd[*]} ... (logging to $log_file)"
+    if "${cmd[@]}" &> "$log_file"; then
+        echo "✅ Command succeeded. Pushing image $image..." | tee -a "$log_file"
+        docker push "$image" &>> "$log_file"
+        return 0
+    else
+        echo "❌ Command failed. Not pushing image." | tee -a "$log_file"
+        return 1
+    fi
+}
+
+# --- 4️⃣ Define commands and log files ---
+CMD_AGENT=(docker compose -f $COMPOSE_FILE run --rm -e PYTHONWARNINGS="ignore" --entrypoint pytest agent -v ./tests)
+LOG_AGENT="$LOG_DIR/agent.log"
+
+CMD_SIMULATOR=(docker compose -f $COMPOSE_FILE run --rm -e PYTHONWARNINGS="ignore" -e PYTHONPATH=/home/hostuser/workspace/simulator_component --entrypoint pytest simulator-headless -v ./tests)
+LOG_SIMULATOR="$LOG_DIR/simulator.log"
+
+# --- 5️⃣ Run commands in parallel ---
+run_command_and_push CMD_AGENT[@] ghcr.io/j-automationlab/agent:latest "$LOG_AGENT" &
+PID_AGENT=$!
+
+run_command_and_push CMD_SIMULATOR[@] ghcr.io/j-automationlab/simulator:latest "$LOG_SIMULATOR" &
+PID_SIMULATOR=$!
+
+# --- 6️⃣ Wait for all parallel jobs ---
+wait $PID_AGENT
+RC_AGENT=$?
+wait $PID_SIMULATOR
+RC_SIMULATOR=$?
+
+# --- 7️⃣ Final decision ---
+if [ $RC_AGENT -eq 0 ] && [ $RC_SIMULATOR -eq 0 ]; then
+    echo "🎉 All tests passed and images pushed. Pre-push OK."
+    exit 0
+else
+    echo "❌ One or more tests failed. Push aborted."
+    echo "Check logs in $LOG_DIR/"
+    exit 1
+fi
