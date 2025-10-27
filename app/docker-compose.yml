@@ -5,6 +5,8 @@ services:
   broker:
     build:
       context: ./broker_component
+      dockerfile: Dockerfile
+    image: ghcr.io/j-automationlab/mqtt_broker:latest
     ports:
       - "1883:1883"
     networks:
