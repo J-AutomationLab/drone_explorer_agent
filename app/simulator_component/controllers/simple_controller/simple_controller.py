@@ -39,11 +39,10 @@ class RobotController:
             assert len(target_rot4d) == 4
             self._rf.setSFRotation(list(target_rot4d))
 
-# ===== RUNTIME ===== 
-if __name__ == "__main__":
+def main():
+    """Entry point for running in Webots."""
     try:
         # MQTT objects
-        #mqtt_broker = 'localhost'
         mqtt_broker = 'mqtt-broker'
         mqtt_client = mqtt.Client()
         mqtt_client.on_connect = on_connect 
@@ -51,7 +50,7 @@ if __name__ == "__main__":
         mqtt_client.connect(mqtt_broker, 1883)
         time.sleep(1)
         mqtt_client.loop_start()
-        
+
         # WEBOTS 
         supervisor = Supervisor()
         robot_node = supervisor.getSelf()
@@ -60,46 +59,38 @@ if __name__ == "__main__":
             robot_node.getField('translation'), 
             robot_node.getField('rotation'),
         )   
-        
+
         camera = supervisor.getDevice('camera')
         camera.enable(timestep)
         height, width = 480, 640
-            
         cmd_msg = None
-        
+
         while supervisor.step(timestep) != -1:
-        
-            # read and publish sensors 
-            image_bytes = camera.getImage() # class bytes
+            image_bytes = camera.getImage()
             if image_bytes:
-                img_np = np.frombuffer(image_bytes, dtype=np.uint8).reshape((height, width,4))
+                img_np = np.frombuffer(image_bytes, dtype=np.uint8).reshape((height, width, 4))
                 img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGBA2BGR)
                 _, jpeg_bytes = cv2.imencode('.jpg', img_bgr)
-                
                 encoded = base64.b64encode(jpeg_bytes).decode('ascii')
                 pose7d = list(robot_controller.pose3d) + list(robot_controller.rot4d)
-                print(pose7d)
                 mqtt_client.publish('hardware_out/camera', encoded)
                 mqtt_client.publish('hardware_out/robot/pose7d', json.dumps(pose7d))
-            
+
             if cmd_msg is not None:
                 topic = cmd_msg.topic
-                payload = cmd_msg.payload.decode()
-                payload = json.loads(payload)
-                
-                print(topic, payload)
+                payload = json.loads(cmd_msg.payload.decode())
                 if topic == 'hardware_in/robot/pose7d':
                     move_pose3d = payload[:3]
                     move_rot4d = payload[3:]
-                    assert [len(x) for x in [move_pose3d, move_rot4d]] == [3,4]
                     robot_controller.move(target_pose3d=move_pose3d, target_rot4d=move_rot4d)
-                else:
-                    raise ValueError(f'Received message from unknwon topic: {topic}')
-                cmd_msg = None 
-            
+                cmd_msg = None
+
             time.sleep(1/30)
 
     except Exception as e:
         mqtt_client.loop_stop()
         mqtt_client.disconnect()
         raise e
+
+if __name__ == "__main__":
+    main()
