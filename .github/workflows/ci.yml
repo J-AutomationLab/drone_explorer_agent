@@ -39,5 +39,8 @@ jobs:
 
       #  Run the matrix step: unit tests for each component
       - name: Run ${{ matrix.component }} Unit Tests
-        run: docker run --rm -e DISPLAY=${DISPLAY} ghcr.io/j-automationlab/${{ matrix.component }}:latest pytest -v ./tests
+        run: | 
+          docker network create test-net
+          docker run -d --name mqtt-broker --network test-net ghcr.io/j-automationlab/mqtt_broker:latest
+          docker run --rm -e DISPLAY=${DISPLAY} --network test-net ghcr.io/j-automationlab/${{ matrix.component }}:latest pytest -v ./tests
 

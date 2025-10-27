@@ -30,6 +30,8 @@ RUN pip install --no-cache-dir \
 # Environment variables for headless / offscreen mode
 ENV QT_X11_NO_MITSHM=1
 ENV WEBOTS_HEADLESS=1
+ENV WEBOTS_SUPPRESS_ROOT_WARNING=1
+ENV WEBOTS_SUPPRESS_ROOT_WARNING=1
 
 # Set working directory
 WORKDIR /home/hostuser/workspace/simulator_component
