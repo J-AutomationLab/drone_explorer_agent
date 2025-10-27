@@ -6,8 +6,6 @@ import pytest
 # Mock Webots controller
 sys.modules['controller'] = MagicMock()
 sys.modules['controller'].Supervisor = MagicMock()
-sys.modules['paho.mqtt.client'] = MagicMock()
-sys.modules['paho'] = MagicMock()
 
 from controllers.simple_controller.simple_controller import RobotController
 
