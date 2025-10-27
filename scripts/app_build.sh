@@ -9,7 +9,7 @@ docker compose -f "$REPO_ROOT/app/docker-compose.yml" build
 
 # --- GHCR Login ---
 if [[ -z "$GH_TOKEN" ]]; then
-  echo "⚠️  GH_TOKEN not set. Please enter your GitHub Personal Access Token:"
+  echo "⚠️  GH_TOKEN not set. Please enter your GitHub Personal Access Token or Export it before calling this script:"
   read -s GH_TOKEN
 fi
 
