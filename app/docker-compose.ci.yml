@@ -1,7 +1,0 @@
-# overrides for the ci
-services:
-  agent:
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=
-    runtime: ""
-    devices: []

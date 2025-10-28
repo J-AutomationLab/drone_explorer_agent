@@ -79,7 +79,7 @@ services:
     environment:
       - DISPLAY=${DISPLAY}
       - HOME=/home/hostuser
-      - NVIDIA_VISIBLE_DEVICES=all
+      #- NVIDIA_VISIBLE_DEVICES=all
       #- PYTHONPATH=/home/hostuser/workspace/agent_component
     volumes:
       #- ./agent_component:/home/hostuser/workspace/agent_component
@@ -90,13 +90,13 @@ services:
       - mqtt_net
     entrypoint: /bin/bash
     restart: unless-stopped
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    #deploy:
+    #  resources:
+    #    reservations:
+    #      devices:
+    #        - driver: nvidia
+    #          count: all
+    #          capabilities: [gpu]
 
 
 networks:
