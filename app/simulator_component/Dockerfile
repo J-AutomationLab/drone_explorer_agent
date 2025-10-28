@@ -31,26 +31,26 @@ RUN pip install --no-cache-dir \
 ENV QT_X11_NO_MITSHM=1
 ENV WEBOTS_HEADLESS=1
 ENV WEBOTS_SUPPRESS_ROOT_WARNING=1
-ENV WEBOTS_SUPPRESS_ROOT_WARNING=1
 
 # Set working directory
 WORKDIR /home/hostuser/workspace/simulator_component
-ENV PYTHONPATH=.
+ENV PYTHONPATH=/home/hostuser/workspace/simulator_component
 
 # Run Webots headless in headless or gui mode
 ENTRYPOINT ["/bin/bash", "-c", "\
 if [ \"$WEBOTS_MODE\" = \"gui\" ]; then \
-    webots --batch --stdout --stderr --mode=realtime ./worlds/my_complete_apartment.wbt; \
+    webots --batch --stdout --stderr --mode=realtime ./worlds/my_complete_apartment.wbt > /home/hostuser/workspace/simulator_component/tests/logs/gui.log 2>&1 || exit 1; \
 else \
     Xvfb :99 -screen 0 1920x1080x24 & \
     export DISPLAY=:99 && \
-    webots --batch --minimize --stdout --stderr --mode=realtime ./worlds/my_complete_apartment.wbt; \
+    webots --batch --minimize --stdout --stderr --mode=realtime ./worlds/my_complete_apartment.wbt > /home/hostuser/workspace/simulator_component/tests/logs/headless.log 2>&1 || exit 1; \
 fi"]
 
 COPY controllers ./controllers
 COPY protos ./protos
 COPY worlds ./worlds
 COPY tests ./tests
+COPY src ./src
 COPY config/preferences.xml /home/hostuser/workspace/.config/Webots/preferences.xml
 
 # WEBOTS_MODE=gui docker compose up / WEBOTS_MODE=headless docker compose up [default]

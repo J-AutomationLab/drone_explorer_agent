@@ -2,27 +2,35 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 env:
   DISPLAY: :99
 
 jobs:
-  tests:
+  docker-compose-tests:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        component: [agent, simulator]
-
     steps:
-      - uses: actions/checkout@v4
+      # 1️⃣ Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Install Xvfb
+      # 2️⃣ Install Docker and Docker Compose
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install Docker Compose CLI
         run: |
           sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      # 3️⃣ Start virtual X server
+      - name: Start Xvfb
+        run: |
           sudo apt-get install -y xvfb
           Xvfb :99 -screen 0 1024x768x16 &
 
+      # 4️⃣ Log in to GHCR
       - name: Log in to GHCR
         uses: docker/login-action@v2
         with:
@@ -30,17 +38,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GH_TOKEN }}
 
-      # Pull images once
-      - name: Pull all images
+      # 5️⃣ Pull all prebuilt images
+      - name: Pull GHCR images
         run: |
           docker pull ghcr.io/j-automationlab/mqtt_broker:latest
           docker pull ghcr.io/j-automationlab/simulator:latest
           docker pull ghcr.io/j-automationlab/agent:latest
 
-      #  Run the matrix step: unit tests for each component
-      - name: Run ${{ matrix.component }} Unit Tests
-        run: | 
-          docker network create test-net
-          docker run -d --name mqtt-broker --network test-net ghcr.io/j-automationlab/mqtt_broker:latest
-          docker run --rm -e DISPLAY=${DISPLAY} --network test-net ghcr.io/j-automationlab/${{ matrix.component }}:latest pytest -v ./tests
+      # 6️⃣ Run docker-compose tests using the pulled images
+      - name: Run Agent Tests
+        run: |
+          docker compose -f ./app/docker-compose.yml run --rm \
+            -e DISPLAY=${DISPLAY} \
+            --entrypoint pytest agent -v ./tests -p no:warnings
 
+      - name: Run Simulator Tests
+        run: |
+          docker compose -f ./app/docker-compose.yml run --rm \
+            -e DISPLAY=${DISPLAY} \
+            --entrypoint pytest simulator-headless -v ./tests -p no:warnings

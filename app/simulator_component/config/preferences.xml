@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Preferences>
+    <general>
+        <checkUpdates>false</checkUpdates>
+        <warnIfRunAsRoot>false</warnIfRunAsRoot>
+        <systemCheck>false</systemCheck>
+    </general>
+    <rendering>
+        <shadows>false</shadows>
+        <antiAliasing>false</antiAliasing>
+        <ambientOcclusion>false</ambientOcclusion>
+    </rendering>
     <!-- Disable the welcome screen and accept the license -->
     <WelcomeScreenShown>true</WelcomeScreenShown>
     <LicenseAccepted>true</LicenseAccepted>

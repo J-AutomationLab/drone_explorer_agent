@@ -19,6 +19,8 @@ services:
       context: ./simulator_component
       dockerfile: Dockerfile
     image: ghcr.io/j-automationlab/simulator:latest
+    depends_on:
+      - broker
     container_name: simulator-headless
     profiles: ["headless"]
     environment:
@@ -27,6 +29,7 @@ services:
       - DISPLAY=:99
       - WEBOTS_HEADLESS=1
       - QT_X11_NO_MITSHM=1
+      - MQTT_BROKER_HOST=broker
     #volumes:
       #- ./simulator_component:/home/hostuser/workspace/simulator_component
       #- ./simulator_component/config/preferences.xml:/home/hostuser/.config/Webots/preferences.xml
@@ -43,6 +46,8 @@ services:
       context: ./simulator_component
       dockerfile: Dockerfile
     image: ghcr.io/j-automationlab/simulator:latest
+    depends_on:
+      - broker
     container_name: simulator-gui
     profiles: ["gui"]
     environment:
@@ -50,6 +55,8 @@ services:
       - WEBOTS_MODE=gui
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
+      - MQTT_BROKER_HOST=broker
+
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       #- ./simulator_component:/home/hostuser/workspace/simulator_component
