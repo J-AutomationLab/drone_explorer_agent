@@ -1,8 +1,7 @@
 # overrides for the ci
 services:
   agent:
-    deploy:
-      resources:
-        reservations: {}
     environment:
-      - NVIDIA_VISIBLE_DEVICES=  # clear the GPU env
+      - NVIDIA_VISIBLE_DEVICES=
+    runtime: ""
+    devices: []
