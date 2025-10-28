@@ -1,7 +1,4 @@
 # overrides for the ci
-
-version: '3.8'
-
 services:
   agent:
     deploy:
