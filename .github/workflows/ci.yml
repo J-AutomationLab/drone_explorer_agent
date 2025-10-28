@@ -48,8 +48,8 @@ jobs:
       # 6️⃣ Run docker-compose tests using the pulled images
       - name: Run Agent Tests
         run: |
-          docker compose -f ./app/docker-compose.yml -f ./app/docker-compose.ci.yml run --rm -e DISPLAY=${DISPLAY} --entrypoint pytest agent -v ./tests -p no:warnings
+          docker compose -f ./app/docker-compose.yml run --rm -e DISPLAY=${DISPLAY} --entrypoint pytest agent -v ./tests -p no:warnings
 
       - name: Run Simulator Tests
         run: |
-          docker compose -f ./app/docker-compose.yml -f ./app/docker-compose.ci.yml run --rm -e DISPLAY=${DISPLAY} --entrypoint pytest simulator-headless -v ./tests -p no:warnings
+          docker compose -f ./app/docker-compose.yml run --rm -e DISPLAY=${DISPLAY} --entrypoint pytest simulator-headless -v ./tests -p no:warnings
